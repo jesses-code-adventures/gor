@@ -1,19 +1,17 @@
 use crate::position::Position;
-use crate::token_type::TokenType;
+use crate::token_type::TokenKind;
 
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Token {
-    kind: TokenType,
-    position: Position,
+    pub kind: Option<TokenKind>,
+    pub position: Position,
 }
 
 impl Token {
-    pub fn new(value: &str, line: u32, column_start: u32, column_end: u32) -> Option<Token> {
-        match TokenType::from_str(value) {
-            Some(kind) => Some(Token {
-                kind,
-                position: Position::new(line, column_start, column_end),
-            }),
-            None => None,
+    pub fn new(value: &str, position: Position) -> Token {
+        Token {
+            kind: TokenKind::from_str(value),
+            position: position,
         }
     }
 }
@@ -23,8 +21,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn break_tokenizes() {
-        let token = Token::new("break", 1, 1, 5).unwrap();
-        assert_eq!(token.kind, TokenType::Break);
+    fn func_tokenizes() {
+        let token = Token::new("func", Position::new(0, 0, 3));
+        assert_eq!(token.kind, Some(TokenKind::Func));
     }
 }

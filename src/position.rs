@@ -1,12 +1,12 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Position {
-    line: u32,
-    column_start: u32,
-    column_end: u32,
+    line: usize,
+    column_start: usize,
+    column_end: usize,
 }
 
 impl Position {
-    pub fn new(line: u32, column_start: u32, column_end: u32) -> Position {
+    pub fn new(line: usize, column_start: usize, column_end: usize) -> Position {
         Position {
             line,
             column_start,
