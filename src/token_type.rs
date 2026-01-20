@@ -86,8 +86,8 @@ pub enum TokenKind {
     // IntegerLiteral,
     // FloatLiteral,
     // ImaginaryLiteral,
-    // RuneLiteral,
-    // StringLiteral,
+    RuneLiteral,
+    StringLiteral,
 }
 
 impl TokenKind {
