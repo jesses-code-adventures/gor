@@ -1,6 +1,6 @@
 use crate::position::Position;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LexerError {
     pub kind: LexerErrorKind,
     pub position: Position,
@@ -20,7 +20,7 @@ impl std::fmt::Display for LexerError {
 
 impl std::error::Error for LexerError {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LexerErrorKind {
     IncompleteToken(String),
     UnexpectedToken(String),
