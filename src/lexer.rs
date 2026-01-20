@@ -23,39 +23,73 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         loop {
             match self.next() {
-                Some(c) => {
-                    match c {
-                        '\n' | '\t' | '\r' | ' ' => {
-                            self.handle_whitespace();
-                            continue;
-                        }
-                        _ => {
-                            let value = self.proposed_token(false);
-                            match self.tokenize(value) {
-                                Ok(Some(token)) => {
-                                    match token.kind {
-                                        None => continue,
-                                        _ => return token,
-                                    }
-                                }
-                                Ok(None) => {
-                                    continue;
-                                }
-                                Err(error) => {
-                                    self.errors.push(error);
-                                    self.anchor = self.current_position;
-                                    continue;
-                                }
-                            }
-                        }
+                Some(ch) => match ch {
+                    ch if is_whitespace(ch) => {
+                        self.handle_whitespace();
+                        continue;
                     }
-                }
+                    ch if is_symbol(ch) => {
+                        println!("Handling symbol: '{}'", ch);
+                        if let Some(token) = self.handle_symbol() {
+                            return token;
+                        }
+                        continue;
+                    }
+                    _ => {
+                        if let Some(token) = self.handle_word() {
+                            return token;
+                        }
+                        continue;
+                    }
+                },
                 None => {
                     return Token {
                         kind: Some(TokenKind::EOF),
                         position: self.current_token_position(),
                     };
                 }
+            }
+        }
+    }
+
+    fn handle_word(&mut self) -> Option<Token> {
+        let value = self.proposed_token(false);
+        println!("Value: '{}'", value);
+        match self.tokenize(value) {
+            Ok(Some(token)) => match token.kind {
+                None => return None,
+                _ => return Some(token),
+            },
+            Ok(None) => {
+                return None;
+            }
+            Err(error) => {
+                self.errors.push(error);
+                self.anchor = self.current_position;
+                return Some(Token {
+                    kind: None,
+                    position: self.current_token_position(),
+                });
+            }
+        }
+    }
+
+    fn handle_symbol(&mut self) -> Option<Token> {
+        if !is_symbol(self.peek_prev().unwrap_or(' ')) {
+            self.anchor = self.current_position;
+        }
+        let value = self.proposed_token(false);
+        println!("Value: '{}'", value);
+        match self.tokenize(value) {
+            Ok(Some(token)) => Some(token),
+            Ok(None) => None,
+            Err(error) => {
+                self.errors.push(error);
+                self.anchor = self.current_position;
+                Some(Token {
+                    kind: None,
+                    position: self.current_token_position(),
+                })
             }
         }
     }
@@ -77,12 +111,17 @@ impl Lexer {
         return c;
     }
 
+    fn peek_prev(&self) -> Option<char> {
+        if self.current_position <= 0 {
+            return None;
+        }
+        let c = self.input.chars().nth(self.current_position - 1);
+        return c;
+    }
+
     fn peek_is_whitespace(&self) -> bool {
         match self.peek() {
-            Some(' ') => true,
-            Some('\n') => true,
-            Some('\t') => true,
-            Some('\r') => true,
+            Some(c) => is_whitespace(c),
             _ => false,
         }
     }
@@ -138,7 +177,7 @@ impl Lexer {
 
     fn handle_whitespace(&mut self) {
         self.current_position += 1;
-        self.anchor = self.current_position;
+        self.anchor = self.current_position - 1;
     }
 
     fn proposed_token(&self, already_iterated: bool) -> &str {
@@ -146,13 +185,76 @@ impl Lexer {
     }
 
     fn current_line(&self) -> usize {
-        self.input[0..self.current_position].split('\n').count()
+        let end = self.current_position.min(self.input.len());
+        self.input[0..end].split('\n').count()
     }
+}
+
+fn is_symbol(c: char) -> bool {
+    matches!(
+        c,
+        '+' | '-'
+            | '*'
+            | '/'
+            | '%'
+            | '&'
+            | '|'
+            | '^'
+            | '<'
+            | '>'
+            | '='
+            | '!'
+            | '.'
+            | '.'
+            | ':'
+            | ','
+            | ';'
+            | '('
+            | ')'
+            | '['
+            | ']'
+            | '{'
+            | '}'
+    )
+}
+
+fn is_whitespace(c: char) -> bool {
+    matches!(c, '\n' | '\t' | '\r' | ' ')
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn three_errors() {
+        let input = "asdf asdf asdf";
+        let mut lexer = Lexer::new(input);
+        loop {
+            match lexer.next_token().kind {
+                Some(TokenKind::EOF) => break,
+                _ => {}
+            }
+        }
+        assert_eq!(lexer.errors.len(), 3);
+    }
+
+    #[test]
+    fn basic_function() {
+        let input = r#"func main() {
+fmt.Println("Hello, World!")
+}
+f"#;
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next_token();
+        assert_eq!(token.kind, Some(TokenKind::Func));
+        let token = lexer.next_token();
+        assert_eq!(token.kind, None);
+        assert_eq!(lexer.errors.len(), 1);
+        let token = lexer.next_token();
+        assert_eq!(token.kind, Some(TokenKind::LeftParen));
+        let token = lexer.next_token();
+        assert_eq!(token.kind, Some(TokenKind::RightParen));
+    }
 
     #[test]
     fn func_start() {
