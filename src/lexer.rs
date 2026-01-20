@@ -39,7 +39,10 @@ impl Lexer {
                         } else {
                             // Start of string
                             self.is_parsing_string = true;
-                            self.anchor = self.current_position - 1; // Include the opening quote
+                            self.anchor = self.current_position - 1; // Include the opening quote -
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
@@ -50,29 +53,28 @@ impl Lexer {
                         } else {
                             // Start of rune
                             self.is_parsing_rune = true;
-                            self.anchor = self.current_position - 1; // Include the opening quote
+                            self.anchor = self.current_position - 1; // Include the opening quote -
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
                     ch if self.is_parsing_string => {
-                        // Handle escape sequences and continue collecting string content
                         if ch == '\\' {
                             // Consume the next character as well (escape sequence)
-                            self.next(); // consume the escaped character
+                            self.next();
                         }
                         continue;
                     }
                     ch if self.is_parsing_rune => {
-                        // Handle escape sequences and continue collecting rune content
                         if ch == '\\' {
                             // Consume the next character as well (escape sequence)
-                            self.next(); // consume the escaped character
+                            self.next();
                         }
                         continue;
                     }
                     ch if is_symbol(ch) => {
-                        // println!("Handling symbol: '{}'", ch);
-                        // Check if we need to finalize a pending word first
                         let symbol_pos = self.current_position - 1;
                         if self.anchor < symbol_pos {
                             // Check what type of characters we have pending
@@ -81,9 +83,10 @@ impl Lexer {
                             // Only separate if the pending characters are not symbols
                             // (i.e., we're transitioning from word to symbol, not symbol to symbol)
                             if !pending_value.chars().all(is_symbol) {
-                                // println!("Found pending word '{}' before symbol", pending_value);
-
                                 // Move current_position back to the symbol so it will be reprocessed
+                                // NOTE: this seems bad - we should create a word token when we
+                                // peek during word processing, rather than needing to mess with
+                                // the current_position
                                 self.current_position = symbol_pos;
 
                                 // Create word token
@@ -198,15 +201,10 @@ impl Lexer {
 
     fn handle_symbol(&mut self) -> Option<Token> {
         let value = self.proposed_token(false);
-        // println!(
-        //     "handle_symbol processing: '{}' (anchor={}, current_pos={})",
-        //     value, self.anchor, self.current_position
-        // );
         match self.tokenize(value) {
             Ok(Some(token)) => {
                 // Token was successfully created, advance anchor
                 self.anchor = self.current_position;
-                // println!("Symbol token created, advancing anchor to {}", self.anchor);
                 Some(token)
             }
             Ok(None) => None,
@@ -250,7 +248,6 @@ impl Lexer {
     fn tokenize(&self, value: &str) -> Result<Option<Token>, LexerError> {
         match TokenKind::from_str(value) {
             Some(_) => {
-                // Check if we can match a longer token
                 if let Some(next_c) = self.peek() {
                     if !self.peek_is_whitespace() {
                         let longer = value.to_string() + &next_c.to_string();
@@ -295,22 +292,18 @@ impl Lexer {
     }
 
     fn handle_whitespace(&mut self) {
-        // No need to advance current_position, it's already advanced by next()
         self.anchor = self.current_position;
     }
 
     fn finalize_string(&mut self) -> Token {
         self.is_parsing_string = false;
         let _string_content = &self.input[self.anchor..self.current_position];
-        // println!("Finalized string: '{}'", string_content);
 
-        // Create string token
         let token = Token {
             kind: Some(TokenKind::StringLiteral),
             position: Position::new(self.current_line(), self.anchor, self.current_position),
         };
 
-        // Reset anchor for next token
         self.anchor = self.current_position;
         token
     }
@@ -318,15 +311,12 @@ impl Lexer {
     fn finalize_rune(&mut self) -> Token {
         self.is_parsing_rune = false;
         let _rune_content = &self.input[self.anchor..self.current_position];
-        // println!("Finalized rune: '{}'", rune_content);
 
-        // Create rune token
         let token = Token {
             kind: Some(TokenKind::RuneLiteral),
             position: Position::new(self.current_line(), self.anchor, self.current_position),
         };
 
-        // Reset anchor for next token
         self.anchor = self.current_position;
         token
     }
@@ -394,30 +384,24 @@ mod tests {
         let input = "hello world test";
         let mut lexer = Lexer::new(input);
 
-        // Capture all errors to see the actual tokens being parsed
-        let mut captured_errors = Vec::new();
         loop {
             let token = lexer.next_token();
             if let Some(TokenKind::EOF) = token.kind {
                 break;
             }
-            if token.kind.is_none() {
-                captured_errors.push(lexer.errors.last().unwrap().clone());
-            }
         }
 
-        // Each word should produce exactly one error with the full word
-        assert_eq!(captured_errors.len(), 3);
+        assert_eq!(lexer.errors.len(), 3);
         assert_eq!(
-            captured_errors[0].kind,
+            lexer.errors[0].kind,
             LexerErrorKind::UnexpectedToken("hello".to_string())
         );
         assert_eq!(
-            captured_errors[1].kind,
+            lexer.errors[1].kind,
             LexerErrorKind::UnexpectedToken("world".to_string())
         );
         assert_eq!(
-            captured_errors[2].kind,
+            lexer.errors[2].kind,
             LexerErrorKind::UnexpectedToken("test".to_string())
         );
     }
