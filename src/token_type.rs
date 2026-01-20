@@ -198,6 +198,7 @@ impl TokenKind {
             TokenKind::Switch => "switch",
             TokenKind::Type => "type",
             TokenKind::Var => "var",
+            TokenKind::EOF => "EOF",
             _ => "",
         }
     }
