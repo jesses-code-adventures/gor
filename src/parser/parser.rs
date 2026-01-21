@@ -218,7 +218,7 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect something wrong to trigger synchronization
-            parser.expect_token(TokenKind::Var); // Wrong token
+            let _ = parser.expect_token(TokenKind::Var); // Wrong token
 
             // Should have synchronized to before the semicolon
             assert_eq!(parser.errors.len(), 1);
@@ -230,7 +230,7 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect wrong token to trigger synchronization
-            parser.expect_token(TokenKind::Var); // Wrong token
+            let _ = parser.expect_token(TokenKind::Var); // Wrong token
 
             // Should synchronize to EOF since there's no semicolon
             assert_eq!(parser.errors.len(), 1);
