@@ -40,9 +40,9 @@ impl Lexer {
                             // Start of string
                             self.is_parsing_string = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                                                                     // we've already called
-                                                                     // next(), so we need to go
-                                                                     // back a char
+                            // we've already called
+                            // next(), so we need to go
+                            // back a char
                             continue;
                         }
                     }
@@ -54,9 +54,9 @@ impl Lexer {
                             // Start of rune
                             self.is_parsing_rune = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                                                                     // we've already called
-                                                                     // next(), so we need to go
-                                                                     // back a char
+                            // we've already called
+                            // next(), so we need to go
+                            // back a char
                             continue;
                         }
                     }
@@ -106,14 +106,14 @@ impl Lexer {
                                                 symbol_pos,
                                             ),
                                         ));
-                                        Token {
-                                            kind: None,
-                                            position: Position::new(
+                                        Token::new(
+                                            "",
+                                            Position::new(
                                                 self.current_line(),
                                                 self.anchor,
                                                 symbol_pos,
                                             ),
-                                        }
+                                        )
                                     }
                                 };
 
@@ -140,16 +140,12 @@ impl Lexer {
                         // Unterminated string error
                         self.errors.push(LexerError::new(
                             LexerErrorKind::UnexpectedToken("unterminated string".to_string()),
-                            Position::new(self.current_line(), self.anchor, self.current_position),
+                            self.current_token_position(),
                         ));
-                        return Token {
-                            kind: None,
-                            position: Position::new(
-                                self.current_line(),
-                                self.anchor,
-                                self.current_position,
-                            ),
-                        };
+                        return Token::new(
+                            "",
+                            self.current_token_position(),
+                        );
                     }
 
                     if self.is_parsing_rune {
@@ -158,20 +154,17 @@ impl Lexer {
                             LexerErrorKind::UnexpectedToken("unterminated rune".to_string()),
                             Position::new(self.current_line(), self.anchor, self.current_position),
                         ));
-                        return Token {
-                            kind: None,
-                            position: Position::new(
-                                self.current_line(),
-                                self.anchor,
-                                self.current_position,
-                            ),
-                        };
+                        return Token::new(
+                            "",
+                            self.current_token_position(),
+                        );
                     }
 
-                    return Token {
-                        kind: Some(TokenKind::EOF),
-                        position: self.current_token_position(),
-                    };
+                    return Token::new_with_kind(
+                        TokenKind::EOF,
+                        "",
+                        self.current_token_position(),
+                    );
                 }
             }
         }
@@ -191,10 +184,7 @@ impl Lexer {
             Err(error) => {
                 self.errors.push(error);
                 self.anchor = self.current_position;
-                return Some(Token {
-                    kind: None,
-                    position: self.current_token_position(),
-                });
+                return Some(Token::new("", self.current_token_position()));
             }
         }
     }
@@ -211,10 +201,7 @@ impl Lexer {
             Err(error) => {
                 self.errors.push(error);
                 self.anchor = self.current_position;
-                Some(Token {
-                    kind: None,
-                    position: self.current_token_position(),
-                })
+                Some(Token::new("", self.current_token_position()))
             }
         }
     }
@@ -287,22 +274,15 @@ impl Lexer {
         };
     }
 
-    fn current_token_position(&self) -> Position {
-        Position::new(self.current_line(), self.anchor, self.current_position)
-    }
-
-    fn handle_whitespace(&mut self) {
-        self.anchor = self.current_position;
-    }
-
     fn finalize_string(&mut self) -> Token {
         self.is_parsing_string = false;
         let _string_content = &self.input[self.anchor..self.current_position];
 
-        let token = Token {
-            kind: Some(TokenKind::StringLiteral),
-            position: Position::new(self.current_line(), self.anchor, self.current_position),
-        };
+        let token = Token::new_with_kind(
+            TokenKind::StringLiteral,
+            _string_content,
+            self.current_token_position(),
+        );
 
         self.anchor = self.current_position;
         token
@@ -312,13 +292,22 @@ impl Lexer {
         self.is_parsing_rune = false;
         let _rune_content = &self.input[self.anchor..self.current_position];
 
-        let token = Token {
-            kind: Some(TokenKind::RuneLiteral),
-            position: Position::new(self.current_line(), self.anchor, self.current_position),
-        };
+        let token = Token::new_with_kind(
+            TokenKind::RuneLiteral,
+            _rune_content,
+            self.current_token_position(),
+        );
 
         self.anchor = self.current_position;
         token
+    }
+
+    fn current_token_position(&self) -> Position {
+        Position::new(self.current_line(), self.anchor, self.current_position)
+    }
+
+    fn handle_whitespace(&mut self) {
+        self.anchor = self.current_position;
     }
 
     fn proposed_token(&self, already_iterated: bool) -> &str {
@@ -366,6 +355,20 @@ fn is_whitespace(c: char) -> bool {
 mod tests {
     use super::*;
     use crate::errors::LexerErrorKind;
+    #[test]
+    fn simple_statement() {
+        let input = r#"j := i++"#;
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next_token();
+        assert_eq!(token.kind, None); // TODO: this should be an identifier
+        let token = lexer.next_token();
+        assert_eq!(token.kind, Some(TokenKind::ColonEqual));
+        let token = lexer.next_token();
+        assert_eq!(token.kind, None); // TODO: this should be an identifier
+        let token = lexer.next_token();
+        assert_eq!(token.kind, Some(TokenKind::PlusPlus));
+    }
+
     #[test]
     fn three_errors() {
         let input = "asdf asdf asdf";

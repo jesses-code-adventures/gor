@@ -82,7 +82,7 @@ pub enum TokenKind {
     LeftBrace,
     RightBrace,
     // Literals
-    // Identifier,
+    Identifier,
     // IntegerLiteral,
     // FloatLiteral,
     // ImaginaryLiteral,
@@ -168,38 +168,6 @@ impl TokenKind {
             "{" => Some(TokenKind::LeftBrace),
             "}" => Some(TokenKind::RightBrace),
             _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            TokenKind::Break => "break",
-            TokenKind::Case => "case",
-            TokenKind::Chan => "chan",
-            TokenKind::Const => "const",
-            TokenKind::Continue => "continue",
-            TokenKind::Default => "default",
-            TokenKind::Defer => "defer",
-            TokenKind::Else => "else",
-            TokenKind::Fallthrough => "fallthrough",
-            TokenKind::For => "for",
-            TokenKind::Func => "func",
-            TokenKind::Go => "go",
-            TokenKind::Goto => "goto",
-            TokenKind::If => "if",
-            TokenKind::Import => "import",
-            TokenKind::Interface => "interface",
-            TokenKind::Map => "map",
-            TokenKind::Package => "package",
-            TokenKind::Range => "range",
-            TokenKind::Return => "return",
-            TokenKind::Select => "select",
-            TokenKind::Struct => "struct",
-            TokenKind::Switch => "switch",
-            TokenKind::Type => "type",
-            TokenKind::Var => "var",
-            TokenKind::EOF => "EOF",
-            _ => "",
         }
     }
 
