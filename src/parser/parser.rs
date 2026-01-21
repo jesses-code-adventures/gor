@@ -1,5 +1,5 @@
 use crate::lexer::{lexer::Lexer, token::Token, token_type::TokenKind};
-use crate::parser::errors::{ParserError, ParserErrorKind};
+use crate::parser::{errors::{ParserError, ParserErrorKind}, ast::Program};
 
 pub struct Parser {
     lexer: Lexer,
@@ -47,6 +47,19 @@ impl Parser {
         ));
         self.synchronize();
         return self.advance();
+    }
+
+    pub fn parse(&mut self) -> Result<Program, Vec<ParserError>> {
+        let mut statements = Vec::new();
+        if !self.errors.is_empty() {
+            return Err(self.errors.clone());
+        } else {
+            // TODO: Implement statement parsing
+            // while !matches!(self.peek().kind, Some(TokenKind::EOF)) {
+            //     statements.push(self.parse_statement()?);
+            // }
+            Ok(Program { statements })
+        }
     }
 
     fn synchronize(&mut self) {
