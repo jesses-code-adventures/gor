@@ -5,6 +5,7 @@ pub enum TokenKind {
     StartBlockComment,
     EndBlockComment,
     EOF,
+    BeforeStart,
 
     // Keywords
     Break,

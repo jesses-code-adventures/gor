@@ -1,7 +1,7 @@
 use crate::lexer::errors::{LexerError, LexerErrorKind};
-use crate::primitives::position::Position;
 use crate::lexer::token::Token;
 use crate::lexer::token_type::TokenKind;
+use crate::primitives::position::Position;
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
@@ -53,9 +53,9 @@ impl Lexer {
                             // Start of string
                             self.is_parsing_string = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                                                                     // we've already called
-                                                                     // next(), so we need to go
-                                                                     // back a char
+                            // we've already called
+                            // next(), so we need to go
+                            // back a char
                             continue;
                         }
                     }
@@ -67,9 +67,9 @@ impl Lexer {
                             // Start of rune
                             self.is_parsing_rune = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                                                                     // we've already called
-                                                                     // next(), so we need to go
-                                                                     // back a char
+                            // we've already called
+                            // next(), so we need to go
+                            // back a char
                             continue;
                         }
                     }
@@ -87,55 +87,7 @@ impl Lexer {
                         continue;
                     }
                     ch if is_symbol(ch) => {
-                        let symbol_pos = self.current_position - 1;
-                        if self.anchor < symbol_pos {
-                            // Check what type of characters we have pending
-                            let pending_value = &self.input[self.anchor..symbol_pos];
-
-                            // Only separate if the pending characters are not symbols
-                            // (i.e., we're transitioning from word to symbol, not symbol to symbol)
-                            if !pending_value.chars().all(is_symbol) {
-                                // Move current_position back to the symbol so it will be reprocessed
-                                // NOTE: this seems bad - we should create a word token when we
-                                // peek during word processing, rather than needing to mess with
-                                // the current_position
-                                self.current_position = symbol_pos;
-
-                                // Create word token
-                                let word_token = match TokenKind::from_str(pending_value) {
-                                    Some(_) => Token::new(
-                                        pending_value,
-                                        Position::new(self.current_line(), self.anchor, symbol_pos),
-                                    ),
-                                    None => {
-                                        self.errors.push(LexerError::new(
-                                            LexerErrorKind::UnexpectedToken(
-                                                pending_value.to_string(),
-                                            ),
-                                            Position::new(
-                                                self.current_line(),
-                                                self.anchor,
-                                                symbol_pos,
-                                            ),
-                                        ));
-                                        Token::new(
-                                            "",
-                                            Position::new(
-                                                self.current_line(),
-                                                self.anchor,
-                                                symbol_pos,
-                                            ),
-                                        )
-                                    }
-                                };
-
-                                // Set anchor for the symbol
-                                self.anchor = symbol_pos;
-                                return word_token;
-                            }
-                        }
-
-                        if let Some(token) = self.handle_symbol() {
+                        if let Some(token) = self.handle_symbol_char() {
                             return token;
                         }
                         continue;
@@ -174,6 +126,68 @@ impl Lexer {
                 }
             }
         }
+    }
+
+    pub fn peek_tokens(&mut self, lookahead: usize) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        let current_position = self.current_position;
+        let anchor = self.anchor;
+        let is_parsing_string = self.is_parsing_string;
+        let is_parsing_rune = self.is_parsing_rune;
+        for _ in 0..lookahead {
+            let token = self.next_token();
+            tokens.push(token);
+        }
+        self.current_position = current_position;
+        self.anchor = anchor;
+        self.is_parsing_string = is_parsing_string;
+        self.is_parsing_rune = is_parsing_rune;
+        tokens
+    }
+
+    fn handle_symbol_char(&mut self) -> Option<Token> {
+        let symbol_pos = self.current_position - 1;
+        if self.anchor < symbol_pos {
+            // Check what type of characters we have pending
+            let pending_value = &self.input[self.anchor..symbol_pos];
+
+            // Only separate if the pending characters are not symbols
+            // (i.e., we're transitioning from word to symbol, not symbol to symbol)
+            if !pending_value.chars().all(is_symbol) {
+                // Move current_position back to the symbol so it will be reprocessed
+                // NOTE: this seems bad - we should create a word token when we
+                // peek during word processing, rather than needing to mess with
+                // the current_position
+                self.current_position = symbol_pos;
+
+                // Create word token
+                let word_token = match TokenKind::from_str(pending_value) {
+                    Some(_) => Token::new(
+                        pending_value,
+                        Position::new(self.current_line(), self.anchor, symbol_pos),
+                    ),
+                    None => {
+                        self.errors.push(LexerError::new(
+                            LexerErrorKind::UnexpectedToken(pending_value.to_string()),
+                            Position::new(self.current_line(), self.anchor, symbol_pos),
+                        ));
+                        Token::new(
+                            "",
+                            Position::new(self.current_line(), self.anchor, symbol_pos),
+                        )
+                    }
+                };
+
+                // Set anchor for the symbol
+                self.anchor = symbol_pos;
+                return Some(word_token);
+            }
+        }
+
+        if let Some(token) = self.handle_symbol() {
+            return Some(token);
+        }
+        None
     }
 
     fn handle_word(&mut self) -> Option<Token> {
@@ -621,7 +635,7 @@ f"#;
         assert_eq!(token.kind, Some(TokenKind::Package));
     }
 
-#[test]
+    #[test]
     fn range_start() {
         let input = "range";
         let mut lexer = Lexer::new(input);

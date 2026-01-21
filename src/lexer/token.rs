@@ -24,6 +24,14 @@ impl Token {
             position,
         }
     }
+
+    pub fn new_before_start() -> Token {
+        Token {
+            kind: Some(TokenKind::BeforeStart),
+            value: "".to_string(),
+            position: Position::new(0, 0, 0),
+        }
+    }
 }
 
 #[cfg(test)]
