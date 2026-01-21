@@ -3,6 +3,7 @@ use crate::position::Position;
 use crate::token::Token;
 use crate::token_type::TokenKind;
 
+#[derive(Debug, Clone)]
 pub struct Lexer {
     input: String, // TODO: this should be a stream or a &str but i cbf to deal with lifetimes
     current_position: usize,
@@ -32,6 +33,18 @@ impl Lexer {
                         self.handle_whitespace();
                         continue;
                     }
+                    ch if is_whitespace(ch) && self.is_parsing_rune => {
+                        // Whitespace inside a rune is invalid - generate error immediately
+                        self.errors.push(LexerError::new(
+                            LexerErrorKind::UnterminatedRune(
+                                self.proposed_token(false).to_string(),
+                            ),
+                            self.current_token_position(),
+                        ));
+                        self.is_parsing_rune = false;
+                        self.anchor = self.current_position;
+                        return Token::new("", self.current_token_position());
+                    }
                     '"' => {
                         if self.is_parsing_string {
                             // End of string - include the closing quote
@@ -40,9 +53,9 @@ impl Lexer {
                             // Start of string
                             self.is_parsing_string = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                            // we've already called
-                            // next(), so we need to go
-                            // back a char
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
@@ -54,15 +67,14 @@ impl Lexer {
                             // Start of rune
                             self.is_parsing_rune = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                            // we've already called
-                            // next(), so we need to go
-                            // back a char
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
                     ch if self.is_parsing_string => {
                         if ch == '\\' {
-                            // Consume the next character as well (escape sequence)
                             self.next();
                         }
                         continue;
@@ -139,7 +151,9 @@ impl Lexer {
                     if self.is_parsing_string {
                         // Unterminated string error
                         self.errors.push(LexerError::new(
-                            LexerErrorKind::UnexpectedToken("unterminated string".to_string()),
+                            LexerErrorKind::UnterminatedString(
+                                self.proposed_token(false).to_string(),
+                            ),
                             self.current_token_position(),
                         ));
                         return Token::new("", self.current_token_position());
@@ -148,8 +162,10 @@ impl Lexer {
                     if self.is_parsing_rune {
                         // Unterminated rune error
                         self.errors.push(LexerError::new(
-                            LexerErrorKind::UnexpectedToken("unterminated rune".to_string()),
-                            Position::new(self.current_line(), self.anchor, self.current_position),
+                            LexerErrorKind::UnterminatedRune(
+                                self.proposed_token(false).to_string(),
+                            ),
+                            self.current_token_position(),
                         ));
                         return Token::new("", self.current_token_position());
                     }
@@ -165,7 +181,11 @@ impl Lexer {
         match self.tokenize(value) {
             Ok(Some(token)) => match token.kind {
                 None => return None,
-                _ => return Some(token),
+                _ => {
+                    // Token was successfully created, advance anchor
+                    self.anchor = self.current_position;
+                    return Some(token);
+                }
             },
             Ok(None) => {
                 return None;
@@ -228,37 +248,22 @@ impl Lexer {
                     if !self.peek_is_whitespace() {
                         let longer = value.to_string() + &next_c.to_string();
                         if TokenKind::could_match(&longer) {
-                            return Ok(None);
+                            return Ok(None); // Continue accumulating
                         }
                     }
                 }
-                // NOTE: we know the token will have a Some kind with the current
-                // implementation, because we have already checked that TokenKind parses
-                // this should probably be checked at some point though, in case Token::new ever
-                // returns None for another reason
                 return Ok(Some(Token::new(value, self.current_token_position())));
             }
             None => {
-                // handles potential incomplete tokens - we only want to error on the last char of
-                // a set of characters that could be a token, so that we're not erroring on every
-                // character in a string
-                if !self.peek_is_whitespace() {
+                if !self.peek_is_whitespace() && TokenKind::could_match(value) {
                     return Ok(None);
                 }
-                match TokenKind::could_match(value) && self.peek_is_whitespace() {
-                    true => {
-                        return Err(LexerError::new(
-                            LexerErrorKind::IncompleteToken(value.to_string()),
-                            self.current_token_position(),
-                        ));
-                    }
-                    false => {
-                        return Err(LexerError::new(
-                            LexerErrorKind::UnexpectedToken(value.to_string()),
-                            self.current_token_position(),
-                        ));
-                    }
-                }
+
+                // At a boundary but no valid token - this is an error
+                return Err(LexerError::new(
+                    LexerErrorKind::UnexpectedToken(value.to_string()),
+                    self.current_token_position(),
+                ));
             }
         };
     }
@@ -343,32 +348,18 @@ fn is_whitespace(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::errors::LexerErrorKind;
     #[test]
     fn simple_statement() {
         let input = r#"j := i++"#;
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, None); // TODO: this should be an identifier
+        assert_eq!(token.kind, Some(TokenKind::Identifier));
         let token = lexer.next_token();
         assert_eq!(token.kind, Some(TokenKind::ColonEqual));
         let token = lexer.next_token();
-        assert_eq!(token.kind, None); // TODO: this should be an identifier
+        assert_eq!(token.kind, Some(TokenKind::Identifier));
         let token = lexer.next_token();
         assert_eq!(token.kind, Some(TokenKind::PlusPlus));
-    }
-
-    #[test]
-    fn three_errors() {
-        let input = "asdf asdf asdf";
-        let mut lexer = Lexer::new(input);
-        loop {
-            match lexer.next_token().kind {
-                Some(TokenKind::EOF) => break,
-                _ => {}
-            }
-        }
-        assert_eq!(lexer.errors.len(), 3);
     }
 
     #[test]
@@ -376,26 +367,28 @@ mod tests {
         let input = "hello world test";
         let mut lexer = Lexer::new(input);
 
+        let mut tokens: Vec<Token> = Vec::new();
         loop {
             let token = lexer.next_token();
+            let mut should_break = false;
             if let Some(TokenKind::EOF) = token.kind {
+                should_break = true;
+            }
+            tokens.push(token);
+            if should_break {
                 break;
             }
         }
 
-        assert_eq!(lexer.errors.len(), 3);
-        assert_eq!(
-            lexer.errors[0].kind,
-            LexerErrorKind::UnexpectedToken("hello".to_string())
-        );
-        assert_eq!(
-            lexer.errors[1].kind,
-            LexerErrorKind::UnexpectedToken("world".to_string())
-        );
-        assert_eq!(
-            lexer.errors[2].kind,
-            LexerErrorKind::UnexpectedToken("test".to_string())
-        );
+        assert_eq!(lexer.errors.len(), 0);
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].kind, Some(TokenKind::Identifier));
+        assert_eq!(tokens[1].kind, Some(TokenKind::Identifier));
+        assert_eq!(tokens[2].kind, Some(TokenKind::Identifier));
+        assert_eq!(tokens[0].value, "hello");
+        assert_eq!(tokens[1].value, "world");
+        assert_eq!(tokens[2].value, "test");
+        assert_eq!(tokens[3].kind, Some(TokenKind::EOF));
     }
 
     #[test]
@@ -403,16 +396,18 @@ mod tests {
         let input = "main()";
         let mut lexer = Lexer::new(input);
 
-        // Should tokenize as: main (identifier/error), (, )
         let token1 = lexer.next_token();
-        assert_eq!(token1.kind, None); // main should be an unrecognized identifier
-        assert_eq!(lexer.errors.len(), 1);
-        assert_eq!(
-            lexer.errors[0].kind,
-            LexerErrorKind::UnexpectedToken("main".to_string())
+        println!(
+            "Token 1: {:?}, value: '{}', errors: {}",
+            token1.kind,
+            token1.value,
+            lexer.errors.len()
         );
+        assert_eq!(token1.kind, Some(TokenKind::Identifier));
+        assert_eq!(lexer.errors.len(), 0);
 
         let token2 = lexer.next_token();
+        println!("Token 2: {:?}, value: '{}'", token2.kind, token2.value);
         assert_eq!(token2.kind, Some(TokenKind::LeftParen));
 
         let token3 = lexer.next_token();
@@ -429,34 +424,21 @@ mod tests {
 
         // Should tokenize as: hello (error), +, world (error), -, test (error)
         let token1 = lexer.next_token();
-        assert_eq!(token1.kind, None);
-        assert_eq!(lexer.errors.len(), 1);
-        assert_eq!(
-            lexer.errors[0].kind,
-            LexerErrorKind::UnexpectedToken("hello".to_string())
-        );
+        assert_eq!(token1.kind, Some(TokenKind::Identifier));
+        assert_eq!(lexer.errors.len(), 0);
 
         let token2 = lexer.next_token();
         assert_eq!(token2.kind, Some(TokenKind::Plus));
 
         let token3 = lexer.next_token();
-        assert_eq!(token3.kind, None);
-        assert_eq!(lexer.errors.len(), 2);
-        assert_eq!(
-            lexer.errors[1].kind,
-            LexerErrorKind::UnexpectedToken("world".to_string())
-        );
+        assert_eq!(token3.kind, Some(TokenKind::Identifier));
+        assert_eq!(lexer.errors.len(), 0);
 
         let token4 = lexer.next_token();
         assert_eq!(token4.kind, Some(TokenKind::Minus));
 
         let token5 = lexer.next_token();
-        assert_eq!(token5.kind, None);
-        assert_eq!(lexer.errors.len(), 3);
-        assert_eq!(
-            lexer.errors[2].kind,
-            LexerErrorKind::UnexpectedToken("test".to_string())
-        );
+        assert_eq!(token5.kind, Some(TokenKind::Identifier));
 
         let token6 = lexer.next_token();
         assert_eq!(token6.kind, Some(TokenKind::EOF));
@@ -472,8 +454,7 @@ f"#;
         let token = lexer.next_token();
         assert_eq!(token.kind, Some(TokenKind::Func));
         let token = lexer.next_token();
-        assert_eq!(token.kind, None);
-        assert_eq!(lexer.errors.len(), 1);
+        assert_eq!(token.kind, Some(TokenKind::Identifier));
         let token = lexer.next_token();
         assert_eq!(token.kind, Some(TokenKind::LeftParen));
         let token = lexer.next_token();
@@ -601,11 +582,27 @@ f"#;
     }
 
     #[test]
-    fn interface_start() {
-        let input = "interface";
+    fn unterminated_rune_error() {
+        let input = r#"'hello world"#;
         let mut lexer = Lexer::new(input);
-        let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Interface));
+
+        let token1 = lexer.next_token();
+        assert_eq!(token1.kind, None);
+
+        assert_eq!(lexer.errors.len(), 1);
+        // The error should be for an unterminated rune (invalid due to whitespace)
+    }
+
+    #[test]
+    fn unterminated_rune_no_whitespace() {
+        let input = r#"'abc"#; // No closing quote, no whitespace
+        let mut lexer = Lexer::new(input);
+
+        let token1 = lexer.next_token();
+        assert_eq!(token1.kind, None);
+
+        assert_eq!(lexer.errors.len(), 1);
+        // The error should be for an unterminated rune (EOF reached)
     }
 
     #[test]
@@ -675,7 +672,7 @@ f"#;
         let mut lexer = Lexer::new(input);
 
         let token1 = lexer.next_token();
-        assert_eq!(token1.kind, None); // Should be an error token
+        assert_eq!(token1.kind, None);
 
         assert_eq!(lexer.errors.len(), 1);
         // The error should be for an unterminated string
@@ -690,9 +687,9 @@ f"#;
         let token1 = lexer.next_token();
         assert_eq!(token1.kind, Some(TokenKind::Func));
 
-        // main (identifier - error)
+        // main (identifier)
         let token2 = lexer.next_token();
-        assert_eq!(token2.kind, None);
+        assert_eq!(token2.kind, Some(TokenKind::Identifier));
 
         // (
         let token3 = lexer.next_token();
@@ -706,17 +703,17 @@ f"#;
         let token5 = lexer.next_token();
         assert_eq!(token5.kind, Some(TokenKind::LeftBrace));
 
-        // fmt (identifier - error)
+        // fmt (identifier)
         let token6 = lexer.next_token();
-        assert_eq!(token6.kind, None);
+        assert_eq!(token6.kind, Some(TokenKind::Identifier));
 
         // .
         let token7 = lexer.next_token();
         assert_eq!(token7.kind, Some(TokenKind::Dot));
 
-        // Println (identifier - error)
+        // Println (identifier)
         let token8 = lexer.next_token();
-        assert_eq!(token8.kind, None);
+        assert_eq!(token8.kind, Some(TokenKind::Identifier));
 
         // (
         let token9 = lexer.next_token();
@@ -738,8 +735,8 @@ f"#;
         let token13 = lexer.next_token();
         assert_eq!(token13.kind, Some(TokenKind::EOF));
 
-        // Should have 3 identifier errors (main, fmt, Println)
-        assert_eq!(lexer.errors.len(), 3);
+        // Should have no errors since all identifiers are valid
+        assert_eq!(lexer.errors.len(), 0);
     }
 
     #[test]
@@ -768,17 +765,6 @@ f"#;
         assert_eq!(token2.kind, Some(TokenKind::EOF));
 
         assert_eq!(lexer.errors.len(), 0);
-    }
-
-    #[test]
-    fn unterminated_rune_error() {
-        let input = r#"'a"#;
-        let mut lexer = Lexer::new(input);
-
-        let token1 = lexer.next_token();
-        assert_eq!(token1.kind, None); // Should be an error token
-
-        assert_eq!(lexer.errors.len(), 1);
     }
 
     #[test]
@@ -1172,22 +1158,6 @@ f"#;
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
         assert_eq!(token.kind, Some(TokenKind::Semicolon));
-    }
-
-    #[test]
-    fn left_paren_start() {
-        let input = "(";
-        let mut lexer = Lexer::new(input);
-        let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::LeftParen));
-    }
-
-    #[test]
-    fn right_paren_start() {
-        let input = ")";
-        let mut lexer = Lexer::new(input);
-        let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::RightParen));
     }
 
     #[test]

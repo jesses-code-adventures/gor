@@ -24,6 +24,8 @@ impl std::error::Error for LexerError {}
 pub enum LexerErrorKind {
     IncompleteToken(String),
     UnexpectedToken(String),
+    UnterminatedString(String),
+    UnterminatedRune(String),
 }
 
 impl std::fmt::Display for LexerErrorKind {
@@ -31,6 +33,10 @@ impl std::fmt::Display for LexerErrorKind {
         match self {
             LexerErrorKind::IncompleteToken(token) => write!(f, "Incomplete token: {}", token),
             LexerErrorKind::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
+            LexerErrorKind::UnterminatedString(token) => {
+                write!(f, "Unterminated string: {}", token)
+            }
+            LexerErrorKind::UnterminatedRune(token) => write!(f, "Unterminated rune: {}", token),
         }
     }
 }
