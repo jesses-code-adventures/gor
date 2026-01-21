@@ -62,7 +62,6 @@ impl Parser {
 mod tests {
     #[cfg(test)]
     mod tests {
-        use super::*;
         use crate::{lexer::token_type::TokenKind, parser::parser::Parser};
 
         #[test]
