@@ -43,6 +43,51 @@ pub enum ExpressionKind {
         object: Box<Expression>, // fmt
         field: String,           // Println
     },
+    Binary {
+        left: Box<Expression>,
+        operator: BinaryOperator,
+        right: Box<Expression>,
+    },
+    Parenthesized(Box<Expression>), // (expr)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum BinaryOperator {
+    // Arithmetic
+    Add,      // +
+    Subtract, // -
+    Multiply, // *
+    Divide,   // /
+    Modulo,   // %
+
+    // Comparison
+    Equal,        // ==
+    NotEqual,     // !=
+    Less,         // <
+    LessEqual,    // <=
+    Greater,      // >
+    GreaterEqual, // >=
+}
+
+impl BinaryOperator {
+    /// Get operator precedence (higher number = higher precedence)
+    pub fn precedence(&self) -> u8 {
+        match self {
+            // Comparison (lowest)
+            BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::Less
+            | BinaryOperator::LessEqual
+            | BinaryOperator::Greater
+            | BinaryOperator::GreaterEqual => 1,
+
+            // Addition level
+            BinaryOperator::Add | BinaryOperator::Subtract => 2,
+
+            // Multiplication level (highest)
+            BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => 3,
+        }
+    }
 }
 
 impl Expression {
@@ -97,6 +142,36 @@ impl Expression {
                 object: Box::new(object),
                 field,
             },
+            start_pos,
+            end_pos,
+        )
+    }
+
+    pub fn new_binary(
+        left: Expression,
+        operator: BinaryOperator,
+        right: Expression,
+        start_pos: Position,
+        end_pos: Position,
+    ) -> Expression {
+        Expression::new(
+            ExpressionKind::Binary {
+                left: Box::new(left),
+                operator,
+                right: Box::new(right),
+            },
+            start_pos,
+            end_pos,
+        )
+    }
+
+    pub fn new_parenthesized(
+        expression: Expression,
+        start_pos: Position,
+        end_pos: Position,
+    ) -> Expression {
+        Expression::new(
+            ExpressionKind::Parenthesized(Box::new(expression)),
             start_pos,
             end_pos,
         )
