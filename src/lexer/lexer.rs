@@ -11,6 +11,7 @@ pub struct Lexer {
     errors: Vec<LexerError>,
     is_parsing_string: bool,
     is_parsing_rune: bool,
+    newline_before_current_token: bool,
 }
 
 impl Lexer {
@@ -22,6 +23,7 @@ impl Lexer {
             errors: Vec::new(),
             is_parsing_string: false,
             is_parsing_rune: false,
+            newline_before_current_token: false,
         }
     }
 
@@ -53,9 +55,9 @@ impl Lexer {
                             // Start of string
                             self.is_parsing_string = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                            // we've already called
-                            // next(), so we need to go
-                            // back a char
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
@@ -67,9 +69,9 @@ impl Lexer {
                             // Start of rune
                             self.is_parsing_rune = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                            // we've already called
-                            // next(), so we need to go
-                            // back a char
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
@@ -315,6 +317,12 @@ impl Lexer {
     }
 
     fn handle_whitespace(&mut self) {
+        // Check if the current character is a newline
+        if let Some(ch) = self.input.chars().nth(self.current_position - 1) {
+            if ch == '\n' {
+                self.newline_before_current_token = true;
+            }
+        }
         self.anchor = self.current_position;
     }
 
@@ -325,6 +333,13 @@ impl Lexer {
     fn current_line(&self) -> usize {
         let end = self.current_position.min(self.input.len());
         self.input[0..end].split('\n').count()
+    }
+
+    /// Check if a newline was encountered before the current token and reset the flag
+    pub fn had_newline_before_current_token(&mut self) -> bool {
+        let had_newline = self.newline_before_current_token;
+        self.newline_before_current_token = false;
+        had_newline
     }
 }
 

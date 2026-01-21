@@ -3,6 +3,7 @@ use crate::parser::{
     ast::{Expression, Program, Statement, StatementKind},
     errors::{ParserError, ParserErrorKind},
 };
+use crate::primitives::position::Position;
 
 pub struct Parser {
     lexer: Lexer,
@@ -48,9 +49,9 @@ impl Parser {
             ParserErrorKind::UnexpectedToken(self.peek().value.clone()),
             self.peek().position,
         );
-        self.errors.push(error);
+        self.errors.push(error.clone());
         self.synchronize();
-        return Ok(self.advance());
+        return Err(error);
     }
 
     pub fn parse(&mut self) -> Result<Program, Vec<ParserError>> {
@@ -59,12 +60,20 @@ impl Parser {
             return Err(self.errors.clone());
         } else {
             while !matches!(self.peek().kind, Some(TokenKind::EOF)) {
-                let statement_result = self.parse_statement();
-                if let Err(error) = statement_result {
-                    self.errors.push(error);
-                    continue;
+                match self.parse_statement() {
+                    Ok(statement) => {
+                        statements.push(statement);
+                    }
+                    Err(error) => {
+                        self.errors.push(error);
+                        // Try to recover by synchronizing to next statement boundary
+                        self.synchronize();
+                        // Skip the current problematic token to avoid infinite loop
+                        if !matches!(self.peek().kind, Some(TokenKind::EOF)) {
+                            self.advance();
+                        }
+                    }
                 }
-                statements.push(statement_result.unwrap());
             }
             Ok(Program { statements })
         }
@@ -72,11 +81,12 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, ParserError> {
         let expression = self.parse_expression()?;
-        let semicolon = self.expect_token(TokenKind::Semicolon)?;
+        let start_position = expression.position_start;
+        let end_position = self.handle_semicolon_insertion()?;
         Ok(Statement {
-            kind: StatementKind::Expression(expression.clone()),
-            position_start: expression.position_start,
-            position_end: semicolon.position,
+            kind: StatementKind::Expression(expression),
+            position_start: start_position,
+            position_end: end_position,
         })
     }
 
@@ -101,6 +111,31 @@ impl Parser {
                 self.peek().position,
             )),
         }
+    }
+
+    fn handle_semicolon_insertion(&mut self) -> Result<Position, ParserError> {
+        if self.peek().kind == Some(TokenKind::Semicolon) {
+            let semicolon = self.advance();
+            Ok(semicolon.position)
+        } else if self.is_end_of_line() {
+            Ok(self.current_token.position)
+        } else {
+            Err(ParserError::new(
+                ParserErrorKind::UnexpectedToken(format!(
+                    "Expected ';' to separate statements on same line, got '{}'",
+                    self.peek().value
+                )),
+                self.peek().position,
+            ))
+        }
+    }
+
+    fn is_end_of_line(&mut self) -> bool {
+        if matches!(self.peek().kind, Some(TokenKind::EOF)) {
+            return true;
+        }
+
+        self.lexer.had_newline_before_current_token()
     }
 
     fn synchronize(&mut self) {
@@ -300,6 +335,56 @@ mod tests {
 
             parser.advance(); // EOF
             assert_eq!(parser.current_token.kind, Some(TokenKind::EOF));
+        }
+
+        #[test]
+        fn semicolon_insertion_single_statement_no_semicolon() {
+            let input = "println";
+            let mut parser = Parser::new(input);
+            let result = parser.parse();
+            assert!(
+                result.is_ok(),
+                "Should parse single statement without semicolon"
+            );
+            let program = result.unwrap();
+            assert_eq!(program.statements.len(), 1);
+        }
+
+        #[test]
+        fn semicolon_insertion_single_statement_with_semicolon() {
+            let input = "println;";
+            let mut parser = Parser::new(input);
+            let result = parser.parse();
+            assert!(
+                result.is_ok(),
+                "Should parse single statement with semicolon"
+            );
+            let program = result.unwrap();
+            assert_eq!(program.statements.len(), 1);
+        }
+
+        #[test]
+        fn semicolon_insertion_multiple_statements_no_semicolon_error() {
+            let input = "println println";
+            let mut parser = Parser::new(input);
+            let _ = parser.parse();
+            assert!(
+                !parser.errors.is_empty(),
+                "Should have errors for multiple statements without semicolon"
+            );
+        }
+
+        #[test]
+        fn semicolon_insertion_multiline_with_newlines() {
+            let input = "println\nprintln\nprintln";
+            let mut parser = Parser::new(input);
+            let result = parser.parse();
+            assert!(
+                result.is_ok(),
+                "Should parse multiple lines without semicolons"
+            );
+            let program = result.unwrap();
+            assert_eq!(program.statements.len(), 3);
         }
     }
 }
