@@ -1,5 +1,5 @@
-use crate::position::Position;
-use crate::token_type::TokenKind;
+use crate::primitives::position::Position;
+use crate::lexer::token_type::TokenKind;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {

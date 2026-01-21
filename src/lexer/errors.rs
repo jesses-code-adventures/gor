@@ -1,4 +1,4 @@
-use crate::position::Position;
+use crate::primitives::position::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LexerError {

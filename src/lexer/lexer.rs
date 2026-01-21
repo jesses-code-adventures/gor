@@ -1,7 +1,7 @@
-use crate::errors::{LexerError, LexerErrorKind};
-use crate::position::Position;
-use crate::token::Token;
-use crate::token_type::TokenKind;
+use crate::lexer::errors::{LexerError, LexerErrorKind};
+use crate::primitives::position::Position;
+use crate::lexer::token::Token;
+use crate::lexer::token_type::TokenKind;
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
@@ -621,7 +621,7 @@ f"#;
         assert_eq!(token.kind, Some(TokenKind::Package));
     }
 
-    #[test]
+#[test]
     fn range_start() {
         let input = "range";
         let mut lexer = Lexer::new(input);
