@@ -142,10 +142,7 @@ impl Lexer {
                             LexerErrorKind::UnexpectedToken("unterminated string".to_string()),
                             self.current_token_position(),
                         ));
-                        return Token::new(
-                            "",
-                            self.current_token_position(),
-                        );
+                        return Token::new("", self.current_token_position());
                     }
 
                     if self.is_parsing_rune {
@@ -154,17 +151,10 @@ impl Lexer {
                             LexerErrorKind::UnexpectedToken("unterminated rune".to_string()),
                             Position::new(self.current_line(), self.anchor, self.current_position),
                         ));
-                        return Token::new(
-                            "",
-                            self.current_token_position(),
-                        );
+                        return Token::new("", self.current_token_position());
                     }
 
-                    return Token::new_with_kind(
-                        TokenKind::EOF,
-                        "",
-                        self.current_token_position(),
-                    );
+                    return Token::new_with_kind(TokenKind::EOF, "", self.current_token_position());
                 }
             }
         }
@@ -172,7 +162,6 @@ impl Lexer {
 
     fn handle_word(&mut self) -> Option<Token> {
         let value = self.proposed_token(false);
-        // println!("Value: '{}'", value);
         match self.tokenize(value) {
             Ok(Some(token)) => match token.kind {
                 None => return None,
