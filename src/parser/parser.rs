@@ -1,5 +1,8 @@
 use crate::lexer::{lexer::Lexer, token::Token, token_type::TokenKind};
-use crate::parser::{errors::{ParserError, ParserErrorKind}, ast::Program};
+use crate::parser::{
+    ast::{Expression, Program, Statement, StatementKind},
+    errors::{ParserError, ParserErrorKind},
+};
 
 pub struct Parser {
     lexer: Lexer,
@@ -21,7 +24,7 @@ impl Parser {
         }
     }
 
-    pub fn advance(&mut self) -> &Token {
+    fn advance(&mut self) -> &Token {
         self.current_token = self.peek_token.clone();
 
         if self.current_token.kind != Some(TokenKind::EOF) {
@@ -33,20 +36,21 @@ impl Parser {
         return &self.current_token;
     }
 
-    pub fn peek(&self) -> &Token {
+    fn peek(&self) -> &Token {
         &self.peek_token
     }
 
-    pub fn expect_token(&mut self, kind: TokenKind) -> &Token {
+    fn expect_token(&mut self, kind: TokenKind) -> Result<&Token, ParserError> {
         if self.peek().kind == Some(kind) {
-            return self.advance();
+            return Ok(self.advance());
         }
-        self.errors.push(ParserError::new(
+        let error = ParserError::new(
             ParserErrorKind::UnexpectedToken(self.peek().value.clone()),
             self.peek().position,
-        ));
+        );
+        self.errors.push(error);
         self.synchronize();
-        return self.advance();
+        return Ok(self.advance());
     }
 
     pub fn parse(&mut self) -> Result<Program, Vec<ParserError>> {
@@ -54,11 +58,48 @@ impl Parser {
         if !self.errors.is_empty() {
             return Err(self.errors.clone());
         } else {
-            // TODO: Implement statement parsing
-            // while !matches!(self.peek().kind, Some(TokenKind::EOF)) {
-            //     statements.push(self.parse_statement()?);
-            // }
+            while !matches!(self.peek().kind, Some(TokenKind::EOF)) {
+                let statement_result = self.parse_statement();
+                if let Err(error) = statement_result {
+                    self.errors.push(error);
+                    continue;
+                }
+                statements.push(statement_result.unwrap());
+            }
             Ok(Program { statements })
+        }
+    }
+
+    fn parse_statement(&mut self) -> Result<Statement, ParserError> {
+        let expression = self.parse_expression()?;
+        let semicolon = self.expect_token(TokenKind::Semicolon)?;
+        Ok(Statement {
+            kind: StatementKind::Expression(expression.clone()),
+            position_start: expression.position_start,
+            position_end: semicolon.position,
+        })
+    }
+
+    fn parse_expression(&mut self) -> Result<Expression, ParserError> {
+        match self.peek().kind {
+            Some(TokenKind::Identifier) => {
+                let identifier = self.expect_token(TokenKind::Identifier)?;
+                Ok(Expression::new_identifier(
+                    identifier.value.clone(),
+                    identifier.position,
+                ))
+            }
+            Some(TokenKind::IntegerLiteral) => {
+                let integer = self.expect_token(TokenKind::IntegerLiteral)?;
+                Ok(Expression::new_integer_literal(
+                    integer.value.clone(),
+                    integer.position,
+                ))
+            }
+            _ => Err(ParserError::new(
+                ParserErrorKind::UnexpectedToken(self.peek().value.clone()),
+                self.peek().position,
+            )),
         }
     }
 
@@ -75,7 +116,29 @@ impl Parser {
 mod tests {
     #[cfg(test)]
     mod tests {
-        use crate::{lexer::token_type::TokenKind, parser::parser::Parser};
+        use crate::{
+            lexer::token_type::TokenKind,
+            parser::{
+                ast::{Expression, StatementKind},
+                parser::Parser,
+            },
+            primitives::position::Position,
+        };
+
+        #[test]
+        fn parser_parse_program() {
+            let input = "identifier;";
+            let mut parser = Parser::new(input);
+            let program = parser.parse().unwrap();
+            assert_eq!(program.statements.len(), 1);
+            assert_eq!(
+                program.statements[0].kind,
+                StatementKind::Expression(Expression::new_identifier(
+                    "identifier".to_string(),
+                    Position::new(1, 0, 10)
+                ))
+            );
+        }
 
         #[test]
         fn parser_initialization() {
@@ -126,7 +189,7 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect "func" - should succeed
-            let token = parser.expect_token(TokenKind::Func);
+            let token = parser.expect_token(TokenKind::Func).unwrap();
             assert_eq!(token.kind, Some(TokenKind::Func));
             assert_eq!(token.value, "func");
             assert_eq!(parser.errors.len(), 0);

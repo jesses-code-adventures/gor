@@ -10,10 +10,12 @@ pub struct Statement {
     pub position_end: Position,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
     Expression(Expression),
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,
     pub position_start: Position,

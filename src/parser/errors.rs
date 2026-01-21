@@ -25,6 +25,7 @@ impl std::error::Error for ParserError {}
 pub enum ParserErrorKind {
     LexerError(LexerError),
     UnexpectedToken(String),
+    NotImplemented,
 }
 
 impl std::fmt::Display for ParserErrorKind {
@@ -32,6 +33,7 @@ impl std::fmt::Display for ParserErrorKind {
         match self {
             ParserErrorKind::LexerError(error) => write!(f, "{}", error),
             ParserErrorKind::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
+            ParserErrorKind::NotImplemented => write!(f, "Not implemented"),
         }
     }
 }
