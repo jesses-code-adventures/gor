@@ -1,9 +1,11 @@
 use crate::lexer::{lexer::Lexer, token::Token, token_type::TokenKind};
 use crate::parser::{
     ast::{Expression, Program, Statement},
-    errors::{ParserError, ParserErrorKind},
 };
-use crate::primitives::position::Position;
+use crate::primitives::{
+    position::Position,
+    errors::parser::{ParserError, ParserErrorKind},
+};
 
 pub struct Parser {
     lexer: Lexer,

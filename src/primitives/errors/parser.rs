@@ -1,5 +1,4 @@
-use crate::lexer::errors::LexerError;
-use crate::primitives::position::Position;
+use crate::primitives::{errors::lexer::LexerError, position::Position};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParserError {

@@ -1,7 +1,9 @@
-use crate::lexer::errors::{LexerError, LexerErrorKind};
 use crate::lexer::token::Token;
 use crate::lexer::token_type::TokenKind;
-use crate::primitives::position::Position;
+use crate::primitives::{
+    errors::lexer::{LexerError, LexerErrorKind},
+    position::Position,
+};
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
@@ -55,9 +57,9 @@ impl Lexer {
                             // Start of string
                             self.is_parsing_string = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                                                                     // we've already called
-                                                                     // next(), so we need to go
-                                                                     // back a char
+                            // we've already called
+                            // next(), so we need to go
+                            // back a char
                             continue;
                         }
                     }
@@ -69,9 +71,9 @@ impl Lexer {
                             // Start of rune
                             self.is_parsing_rune = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                                                                     // we've already called
-                                                                     // next(), so we need to go
-                                                                     // back a char
+                            // we've already called
+                            // next(), so we need to go
+                            // back a char
                             continue;
                         }
                     }
