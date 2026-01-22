@@ -605,5 +605,40 @@ func main() {
             println!("Parsed {} statements", program.statements.len());
             assert_eq!(program.statements.len(), 3); // package, import, func
         }
+
+        // Binary Expression Tests
+        #[test]
+        fn parse_binary_expressions() {
+            let expressions = vec![
+                "a + b",          // Addition
+                "x * y",          // Multiplication
+                "p - q",          // Subtraction
+                "m / n",          // Division
+                "a % b",          // Modulo
+                "x == y",         // Equality
+                "a != b",         // Inequality
+                "p < q",          // Less than
+                "m <= n",         // Less than or equal
+                "a > b",          // Greater than
+                "x >= y",         // Greater than or equal
+                "a + b * c",      // Precedence test
+                "(a + b) * c",    // Parentheses
+                "func() + var",   // Mixed function calls and variables
+                "obj.field + 42", // Mixed field access and literals
+            ];
+
+            for expr in expressions {
+                let mut parser = Parser::new(expr);
+                let result = parser.parse();
+                assert!(result.is_ok(), "Should parse binary expression: {}", expr);
+                let program = result.unwrap();
+                assert_eq!(
+                    program.statements.len(),
+                    1,
+                    "Should have one statement for: {}",
+                    expr
+                );
+            }
+        }
     }
 }
