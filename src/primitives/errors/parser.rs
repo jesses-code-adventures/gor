@@ -24,6 +24,7 @@ impl std::error::Error for ParserError {}
 pub enum ParserErrorKind {
     LexerError(LexerError),
     UnexpectedToken(String),
+    NotAPrimaryExpression(String),
     NotImplemented,
 }
 
@@ -32,6 +33,7 @@ impl std::fmt::Display for ParserErrorKind {
         match self {
             ParserErrorKind::LexerError(error) => write!(f, "{}", error),
             ParserErrorKind::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
+            ParserErrorKind::NotAPrimaryExpression(token) => write!(f, "Not a primary expression: {}", token),
             ParserErrorKind::NotImplemented => write!(f, "Not implemented"),
         }
     }

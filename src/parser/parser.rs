@@ -1,10 +1,12 @@
-use crate::lexer::{lexer::Lexer, token::Token, token_type::TokenKind};
-use crate::parser::{
-    ast::{Expression, Program, Statement},
+use crate::ast::{ast::Program, expression::Expression, statement::Statement};
+use crate::lexer::{
+    lexer::Lexer,
+    token::Token,
+    token_type::{Keyword, TokenKind},
 };
 use crate::primitives::{
-    position::Position,
     errors::parser::{ParserError, ParserErrorKind},
+    position::Position,
 };
 
 pub struct Parser {
@@ -25,6 +27,15 @@ impl Parser {
             peek_token,
             errors: Vec::new(),
         }
+    }
+
+    pub fn dump_errors(&self) -> String {
+        let mut errors = String::new();
+        errors.push_str("Parser errors:\n");
+        for error in &self.errors {
+            errors.push_str(&format!("{}\n", error));
+        }
+        errors
     }
 
     fn advance(&mut self) -> &Token {
@@ -83,9 +94,9 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, ParserError> {
         match self.peek().kind {
-            Some(TokenKind::Package) => self.parse_package_declaration(),
-            Some(TokenKind::Import) => self.parse_import_declaration(),
-            Some(TokenKind::Func) => self.parse_function_declaration(),
+            Some(TokenKind::Keyword(Keyword::Package)) => self.parse_package_declaration(),
+            Some(TokenKind::Keyword(Keyword::Import)) => self.parse_import_declaration(),
+            Some(TokenKind::Keyword(Keyword::Func)) => self.parse_function_declaration(),
             _ => {
                 // Default to expression statement
                 self.parse_expression_statement()
@@ -105,7 +116,7 @@ impl Parser {
     }
 
     fn parse_package_declaration(&mut self) -> Result<Statement, ParserError> {
-        let package_token = self.expect_token(TokenKind::Package)?;
+        let package_token = self.expect_token(TokenKind::Keyword(Keyword::Package))?;
         let package_pos = package_token.position;
         let name_token = self.expect_token(TokenKind::Identifier)?;
         let name_value = name_token.value.clone();
@@ -119,7 +130,7 @@ impl Parser {
     }
 
     fn parse_import_declaration(&mut self) -> Result<Statement, ParserError> {
-        let import_token = self.expect_token(TokenKind::Import)?;
+        let import_token = self.expect_token(TokenKind::Keyword(Keyword::Import))?;
         let import_pos = import_token.position;
         let path_token = self.expect_token(TokenKind::StringLiteral)?;
         let path_value = path_token.value.clone();
@@ -133,7 +144,7 @@ impl Parser {
     }
 
     fn parse_function_declaration(&mut self) -> Result<Statement, ParserError> {
-        let func_token = self.expect_token(TokenKind::Func)?;
+        let func_token = self.expect_token(TokenKind::Keyword(Keyword::Func))?;
         let func_pos = func_token.position;
         let name_token = self.expect_token(TokenKind::Identifier)?;
         let func_name = name_token.value.clone();
@@ -170,7 +181,34 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParserError> {
-        match self.peek().kind {
+        let left = self.parse_binary_expression(0);
+        left
+    }
+
+    fn parse_binary_expression(&mut self, min_precedence: u8) -> Result<Expression, ParserError> {
+        let mut left = self.parse_primary_expression()?;
+        loop {
+            let next = self.peek();
+            match next.kind {
+                Some(TokenKind::Operator(op)) => {
+                    self.advance();
+                    let right = self.parse_binary_expression(op.precedence())?;
+                    left = Expression::new_binary(
+                        left.clone(),
+                        op,
+                        right.clone(),
+                        left.position_start,
+                        right.position_end,
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn parse_primary_expression(&mut self) -> Result<Expression, ParserError> {
+        let next = self.peek();
+        match next.kind {
             Some(TokenKind::Identifier) => self.parse_identifier_expression(),
             Some(TokenKind::IntegerLiteral) => {
                 let integer = self.expect_token(TokenKind::IntegerLiteral)?;
@@ -187,8 +225,8 @@ impl Parser {
                 ))
             }
             _ => Err(ParserError::new(
-                ParserErrorKind::UnexpectedToken(self.peek().value.clone()),
-                self.peek().position,
+                ParserErrorKind::NotAPrimaryExpression(next.value.to_string()),
+                next.position,
             )),
         }
     }
@@ -289,11 +327,9 @@ mod tests {
     #[cfg(test)]
     mod tests {
         use crate::{
-            lexer::token_type::TokenKind,
-            parser::{
-                ast::{Expression, StatementKind},
-                parser::Parser,
-            },
+            ast::{expression::Expression, statement::StatementKind},
+            lexer::token_type::{TokenKind, Keyword},
+            parser::parser::Parser,
             primitives::position::Position,
         };
 
@@ -319,7 +355,7 @@ mod tests {
 
             // Parser should start "before" the first token
             assert_eq!(parser.current_token.kind, Some(TokenKind::BeforeStart));
-            assert_eq!(parser.peek_token.kind, Some(TokenKind::Func));
+            assert_eq!(parser.peek_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
             assert_eq!(parser.errors.len(), 0);
         }
 
@@ -330,7 +366,7 @@ mod tests {
 
             // First advance should get "func"
             let token = parser.advance();
-            assert_eq!(token.kind, Some(TokenKind::Func));
+            assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Func)));
             assert_eq!(token.value, "func");
 
             // Peek should now be "main"
@@ -345,7 +381,7 @@ mod tests {
 
             // First advance gets "func"
             parser.advance();
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Func));
+            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
 
             // Second advance gets EOF
             parser.advance();
@@ -361,13 +397,13 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect "func" - should succeed
-            let token = parser.expect_token(TokenKind::Func).unwrap();
-            assert_eq!(token.kind, Some(TokenKind::Func));
+            let token = parser.expect_token(TokenKind::Keyword(Keyword::Func)).unwrap();
+            assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Func)));
             assert_eq!(token.value, "func");
             assert_eq!(parser.errors.len(), 0);
 
             // Current token should now be "func", peek should be "main"
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Func));
+            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
             assert_eq!(parser.peek().kind, Some(TokenKind::Identifier));
         }
 
@@ -377,7 +413,7 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect "var" but get "func" - should fail and synchronize
-            let _token = parser.expect_token(TokenKind::Var);
+            let _token = parser.expect_token(TokenKind::Keyword(Keyword::Var));
             assert_eq!(parser.errors.len(), 1);
 
             // Should have synchronized and advanced past the error
@@ -390,7 +426,7 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect something wrong to trigger synchronization
-            let _ = parser.expect_token(TokenKind::Var); // Wrong token
+            let _ = parser.expect_token(TokenKind::Keyword(Keyword::Var)); // Wrong token
 
             // Should have synchronized to before the semicolon
             assert_eq!(parser.errors.len(), 1);
@@ -402,7 +438,7 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect wrong token to trigger synchronization
-            let _ = parser.expect_token(TokenKind::Var); // Wrong token
+            let _ = parser.expect_token(TokenKind::Keyword(Keyword::Var)); // Wrong token
 
             // Should synchronize to EOF since there's no semicolon
             assert_eq!(parser.errors.len(), 1);
@@ -414,8 +450,8 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Peek should be consistent
-            assert_eq!(parser.peek().kind, Some(TokenKind::Func));
-            assert_eq!(parser.peek().kind, Some(TokenKind::Func)); // Multiple peeks
+            assert_eq!(parser.peek().kind, Some(TokenKind::Keyword(Keyword::Func)));
+            assert_eq!(parser.peek().kind, Some(TokenKind::Keyword(Keyword::Func))); // Multiple peeks
 
             // Advance and check again
             parser.advance();
@@ -439,10 +475,10 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Whitespace should be ignored
-            assert_eq!(parser.peek().kind, Some(TokenKind::Func));
+            assert_eq!(parser.peek().kind, Some(TokenKind::Keyword(Keyword::Func)));
 
             parser.advance();
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Func));
+            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
             assert_eq!(parser.peek().kind, Some(TokenKind::Identifier));
         }
 
@@ -453,7 +489,7 @@ mod tests {
 
             // Test sequence of advances
             parser.advance(); // func
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Func));
+            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
 
             parser.advance(); // main
             assert_eq!(parser.current_token.kind, Some(TokenKind::Identifier));
@@ -632,6 +668,12 @@ func main() {
             for expr in expressions {
                 let mut parser = Parser::new(expr);
                 let result = parser.parse();
+                assert!(
+                    parser.errors.is_empty(),
+                    "Should parse binary expression: {}\n{}",
+                    expr,
+                    parser.dump_errors()
+                );
                 assert!(result.is_ok(), "Should parse binary expression: {}", expr);
                 let program = result.unwrap();
                 assert_eq!(

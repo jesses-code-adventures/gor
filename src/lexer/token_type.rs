@@ -1,13 +1,52 @@
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum TokenKind {
-    // Utilities
-    SingleLineComment,
-    StartBlockComment,
-    EndBlockComment,
-    EOF,
-    BeforeStart,
+pub enum Operator {
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Ampersand,
+    Pipe,
+    Caret,
+    LessLess,
+    GreaterGreater,
+    AmpersandCaret,
+    AndAnd,
+    PipePipe,
+    EqualEqual,
+    BangEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+}
 
-    // Keywords
+impl Operator {
+    // https://go.dev/ref/spec#Operator_precedence
+    pub fn precedence(&self) -> u8 {
+        match self {
+            Operator::PipePipe => 1,
+            Operator::AndAnd => 2,
+            Operator::EqualEqual
+            | Operator::BangEqual
+            | Operator::Less
+            | Operator::LessEqual
+            | Operator::Greater
+            | Operator::GreaterEqual => 3,
+            Operator::Plus | Operator::Minus | Operator::Pipe | Operator::Caret => 4,
+            Operator::Star
+            | Operator::Slash
+            | Operator::Percent
+            | Operator::LessLess
+            | Operator::GreaterGreater
+            | Operator::Ampersand
+            | Operator::AmpersandCaret => 5,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum Keyword {
     Break,
     Case,
     Chan,
@@ -33,19 +72,41 @@ pub enum TokenKind {
     Switch,
     Type,
     Var,
+}
+
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum TokenKind {
+    // Utilities
+    SingleLineComment,
+    StartBlockComment,
+    EndBlockComment,
+    EOF,
+    BeforeStart,
+
+    // Literals
+    Identifier,
+    IntegerLiteral,
+    FloatLiteral,
+    // ImaginaryLiteral,
+    RuneLiteral,
+    StringLiteral,
+
+    // Keywords
+    Keyword(Keyword),
 
     // Operators and Punctuation
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Percent,
-    Ampersand,
-    Pipe,
-    Caret,
-    LessLess,
-    GreaterGreater,
-    AmpersandCaret,
+    Operator(Operator),
+
+    // Channels
+    LessMinus,
+
+    MinusMinus,
+    PlusPlus,
+
+    // Assignment
+    Equal,
+    ColonEqual,
     PlusEqual,
     MinusEqual,
     StarEqual,
@@ -57,19 +118,6 @@ pub enum TokenKind {
     LessLessEqual,
     GreaterGreaterEqual,
     AmpersandCaretEqual,
-    AndAnd,
-    PipePipe,
-    LessMinus,
-    PlusPlus,
-    MinusMinus,
-    EqualEqual,
-    BangEqual,
-    Less,
-    LessEqual,
-    Greater,
-    GreaterEqual,
-    Equal,
-    ColonEqual,
     Bang,
     DotDotDot,
     Dot,
@@ -82,13 +130,6 @@ pub enum TokenKind {
     RightBracket,
     LeftBrace,
     RightBrace,
-    // Literals
-    Identifier,
-    IntegerLiteral,
-    FloatLiteral,
-    // ImaginaryLiteral,
-    RuneLiteral,
-    StringLiteral,
 }
 
 fn is_valid_string_content(content: &str) -> bool {
@@ -161,36 +202,40 @@ impl TokenKind {
 
         match value {
             // Keywords
-            "break" => Some(TokenKind::Break),
-            "case" => Some(TokenKind::Case),
-            "chan" => Some(TokenKind::Chan),
-            "const" => Some(TokenKind::Const),
-            "continue" => Some(TokenKind::Continue),
-            "default" => Some(TokenKind::Default),
-            "defer" => Some(TokenKind::Defer),
-            "else" => Some(TokenKind::Else),
-            "fallthrough" => Some(TokenKind::Fallthrough),
-            "for" => Some(TokenKind::For),
-            "func" => Some(TokenKind::Func),
-            "go" => Some(TokenKind::Go),
-            "goto" => Some(TokenKind::Goto),
-            "if" => Some(TokenKind::If),
-            "import" => Some(TokenKind::Import),
-            "interface" => Some(TokenKind::Interface),
-            "map" => Some(TokenKind::Map),
-            "package" => Some(TokenKind::Package),
-            "range" => Some(TokenKind::Range),
-            "return" => Some(TokenKind::Return),
-            "select" => Some(TokenKind::Select),
-            "struct" => Some(TokenKind::Struct),
-            "switch" => Some(TokenKind::Switch),
-            "type" => Some(TokenKind::Type),
-            "var" => Some(TokenKind::Var),
-            // Operators and Punctuation
+            "break" => Some(TokenKind::Keyword(Keyword::Break)),
+            "case" => Some(TokenKind::Keyword(Keyword::Case)),
+            "chan" => Some(TokenKind::Keyword(Keyword::Chan)),
+            "const" => Some(TokenKind::Keyword(Keyword::Const)),
+            "continue" => Some(TokenKind::Keyword(Keyword::Continue)),
+            "default" => Some(TokenKind::Keyword(Keyword::Default)),
+            "defer" => Some(TokenKind::Keyword(Keyword::Defer)),
+            "else" => Some(TokenKind::Keyword(Keyword::Else)),
+            "fallthrough" => Some(TokenKind::Keyword(Keyword::Fallthrough)),
+            "for" => Some(TokenKind::Keyword(Keyword::For)),
+            "func" => Some(TokenKind::Keyword(Keyword::Func)),
+            "go" => Some(TokenKind::Keyword(Keyword::Go)),
+            "goto" => Some(TokenKind::Keyword(Keyword::Goto)),
+            "if" => Some(TokenKind::Keyword(Keyword::If)),
+            "import" => Some(TokenKind::Keyword(Keyword::Import)),
+            "interface" => Some(TokenKind::Keyword(Keyword::Interface)),
+            "map" => Some(TokenKind::Keyword(Keyword::Map)),
+            "package" => Some(TokenKind::Keyword(Keyword::Package)),
+            "range" => Some(TokenKind::Keyword(Keyword::Range)),
+            "return" => Some(TokenKind::Keyword(Keyword::Return)),
+            "select" => Some(TokenKind::Keyword(Keyword::Select)),
+            "struct" => Some(TokenKind::Keyword(Keyword::Struct)),
+            "switch" => Some(TokenKind::Keyword(Keyword::Switch)),
+            "type" => Some(TokenKind::Keyword(Keyword::Type)),
+            "var" => Some(TokenKind::Keyword(Keyword::Var)),
             "..." => Some(TokenKind::DotDotDot),
             "<<=" => Some(TokenKind::LessLessEqual),
             ">>=" => Some(TokenKind::GreaterGreaterEqual),
             "&^=" => Some(TokenKind::AmpersandCaretEqual),
+            // Operators and Punctuation
+            "==" => Some(TokenKind::Operator(Operator::EqualEqual)),
+            "!=" => Some(TokenKind::Operator(Operator::BangEqual)),
+            "&&" => Some(TokenKind::Operator(Operator::AndAnd)),
+            "||" => Some(TokenKind::Operator(Operator::PipePipe)),
             "+=" => Some(TokenKind::PlusEqual),
             "-=" => Some(TokenKind::MinusEqual),
             "*=" => Some(TokenKind::StarEqual),
@@ -199,31 +244,27 @@ impl TokenKind {
             "&=" => Some(TokenKind::AmpersandEqual),
             "|=" => Some(TokenKind::PipeEqual),
             "^=" => Some(TokenKind::CaretEqual),
-            "&&" => Some(TokenKind::AndAnd),
-            "||" => Some(TokenKind::PipePipe),
             "<-" => Some(TokenKind::LessMinus),
             "++" => Some(TokenKind::PlusPlus),
             "--" => Some(TokenKind::MinusMinus),
-            "==" => Some(TokenKind::EqualEqual),
-            "!=" => Some(TokenKind::BangEqual),
-            "<" => Some(TokenKind::Less),
-            "<=" => Some(TokenKind::LessEqual),
-            ">" => Some(TokenKind::Greater),
-            ">=" => Some(TokenKind::GreaterEqual),
             ":=" => Some(TokenKind::ColonEqual),
-            "<<" => Some(TokenKind::LessLess),
-            ">>" => Some(TokenKind::GreaterGreater),
-            "&^" => Some(TokenKind::AmpersandCaret),
+            "<" => Some(TokenKind::Operator(Operator::Less)),
+            "<=" => Some(TokenKind::Operator(Operator::LessEqual)),
+            ">" => Some(TokenKind::Operator(Operator::Greater)),
+            ">=" => Some(TokenKind::Operator(Operator::GreaterEqual)),
+            "<<" => Some(TokenKind::Operator(Operator::LessLess)),
+            ">>" => Some(TokenKind::Operator(Operator::GreaterGreater)),
+            "&^" => Some(TokenKind::Operator(Operator::AmpersandCaret)),
+            "+" => Some(TokenKind::Operator(Operator::Plus)),
+            "-" => Some(TokenKind::Operator(Operator::Minus)),
+            "*" => Some(TokenKind::Operator(Operator::Star)),
+            "/" => Some(TokenKind::Operator(Operator::Slash)),
+            "%" => Some(TokenKind::Operator(Operator::Percent)),
+            "&" => Some(TokenKind::Operator(Operator::Ampersand)),
+            "|" => Some(TokenKind::Operator(Operator::Pipe)),
+            "^" => Some(TokenKind::Operator(Operator::Caret)),
             "!" => Some(TokenKind::Bang),
             "=" => Some(TokenKind::Equal),
-            "+" => Some(TokenKind::Plus),
-            "-" => Some(TokenKind::Minus),
-            "*" => Some(TokenKind::Star),
-            "/" => Some(TokenKind::Slash),
-            "%" => Some(TokenKind::Percent),
-            "&" => Some(TokenKind::Ampersand),
-            "|" => Some(TokenKind::Pipe),
-            "^" => Some(TokenKind::Caret),
             "." => Some(TokenKind::Dot),
             ":" => Some(TokenKind::Colon),
             "," => Some(TokenKind::Comma),
@@ -373,7 +414,7 @@ mod tests {
     #[test]
     fn func_tokenizes() {
         let token = TokenKind::from_str("func");
-        assert_eq!(token, Some(TokenKind::Func));
+        assert_eq!(token, Some(TokenKind::Keyword(Keyword::Func)));
     }
 
     #[test]

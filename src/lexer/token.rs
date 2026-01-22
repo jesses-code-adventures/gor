@@ -1,5 +1,5 @@
+use crate::lexer::token_type::{TokenKind, Keyword};
 use crate::primitives::position::Position;
-use crate::lexer::token_type::TokenKind;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
@@ -32,6 +32,34 @@ impl Token {
             position: Position::new(0, 0, 0),
         }
     }
+
+    /// if this token precedes a newline outside a string, should the parser insert a semicolon?
+    /// (according to the formal syntax -> https://go.dev/ref/spec#Semicolons )
+    //
+    // from the docs, as of the time of writing this...
+    // an identifier
+    // an integer, floating-point, imaginary, rune, or string literal
+    // one of the keywords break, continue, fallthrough, or return
+    // one of the operators and punctuation ++, --, ), ], or }
+    pub fn should_insert_semicolon(&self) -> bool {
+        match self.kind {
+            Some(TokenKind::Identifier)
+            | Some(TokenKind::IntegerLiteral)
+            | Some(TokenKind::FloatLiteral)
+            | Some(TokenKind::RuneLiteral)
+            | Some(TokenKind::StringLiteral)
+            | Some(TokenKind::Keyword(Keyword::Break))
+            | Some(TokenKind::Keyword(Keyword::Continue))
+            | Some(TokenKind::Keyword(Keyword::Fallthrough))
+            | Some(TokenKind::Keyword(Keyword::Return))
+            | Some(TokenKind::PlusPlus)
+            | Some(TokenKind::MinusMinus)
+            | Some(TokenKind::RightParen)
+            | Some(TokenKind::RightBracket)
+            | Some(TokenKind::RightBrace) => true,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -41,6 +69,6 @@ mod tests {
     #[test]
     fn func_tokenizes() {
         let token = Token::new("func", Position::new(0, 0, 3));
-        assert_eq!(token.kind, Some(TokenKind::Func));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Func)));
     }
 }

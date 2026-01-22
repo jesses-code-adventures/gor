@@ -1,5 +1,5 @@
 use crate::lexer::token::Token;
-use crate::lexer::token_type::TokenKind;
+use crate::lexer::token_type::{TokenKind};
 use crate::primitives::{
     errors::lexer::{LexerError, LexerErrorKind},
     position::Position,
@@ -379,6 +379,7 @@ fn is_whitespace(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lexer::token_type::{Operator, Keyword};
     #[test]
     fn simple_statement() {
         let input = r#"j := i++"#;
@@ -459,14 +460,14 @@ mod tests {
         assert_eq!(lexer.errors.len(), 0);
 
         let token2 = lexer.next_token();
-        assert_eq!(token2.kind, Some(TokenKind::Plus));
+        assert_eq!(token2.kind, Some(TokenKind::Operator(Operator::Plus)));
 
         let token3 = lexer.next_token();
         assert_eq!(token3.kind, Some(TokenKind::Identifier));
         assert_eq!(lexer.errors.len(), 0);
 
         let token4 = lexer.next_token();
-        assert_eq!(token4.kind, Some(TokenKind::Minus));
+        assert_eq!(token4.kind, Some(TokenKind::Operator(Operator::Minus)));
 
         let token5 = lexer.next_token();
         assert_eq!(token5.kind, Some(TokenKind::Identifier));
@@ -483,7 +484,7 @@ fmt.Println("Hello, World!")
 f"#;
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Func));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Func)));
         let token = lexer.next_token();
         assert_eq!(token.kind, Some(TokenKind::Identifier));
         let token = lexer.next_token();
@@ -497,7 +498,7 @@ f"#;
         let input = "func";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Func));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Func)));
     }
 
     #[test]
@@ -505,7 +506,7 @@ f"#;
         let input = "break";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Break));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Break)));
     }
 
     #[test]
@@ -513,7 +514,7 @@ f"#;
         let input = "case";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Case));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Case)));
     }
 
     #[test]
@@ -521,7 +522,7 @@ f"#;
         let input = "chan";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Chan));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Chan)));
     }
 
     #[test]
@@ -529,7 +530,7 @@ f"#;
         let input = "const";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Const));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Const)));
     }
 
     #[test]
@@ -537,7 +538,7 @@ f"#;
         let input = "continue";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Continue));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Continue)));
     }
 
     #[test]
@@ -545,7 +546,7 @@ f"#;
         let input = "default";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Default));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Default)));
     }
 
     #[test]
@@ -553,7 +554,7 @@ f"#;
         let input = "defer";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Defer));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Defer)));
     }
 
     #[test]
@@ -561,7 +562,7 @@ f"#;
         let input = "else";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Else));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Else)));
     }
 
     #[test]
@@ -569,7 +570,7 @@ f"#;
         let input = "fallthrough";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Fallthrough));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Fallthrough)));
     }
 
     #[test]
@@ -577,7 +578,7 @@ f"#;
         let input = "for";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::For));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::For)));
     }
 
     #[test]
@@ -585,7 +586,7 @@ f"#;
         let input = "go";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Go));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Go)));
     }
 
     #[test]
@@ -593,7 +594,7 @@ f"#;
         let input = "goto";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Goto));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Goto)));
     }
 
     #[test]
@@ -601,7 +602,7 @@ f"#;
         let input = "if";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::If));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::If)));
     }
 
     #[test]
@@ -609,7 +610,7 @@ f"#;
         let input = "import";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Import));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Import)));
     }
 
     #[test]
@@ -641,7 +642,7 @@ f"#;
         let input = "map";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Map));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Map)));
     }
 
     #[test]
@@ -649,7 +650,7 @@ f"#;
         let input = "package";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Package));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Package)));
     }
 
     #[test]
@@ -657,7 +658,7 @@ f"#;
         let input = "range";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Range));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Range)));
     }
 
     #[test]
@@ -665,7 +666,7 @@ f"#;
         let input = "return";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Return));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Return)));
     }
 
     #[test]
@@ -716,7 +717,7 @@ f"#;
 
         // func
         let token1 = lexer.next_token();
-        assert_eq!(token1.kind, Some(TokenKind::Func));
+        assert_eq!(token1.kind, Some(TokenKind::Keyword(Keyword::Func)));
 
         // main (identifier)
         let token2 = lexer.next_token();
@@ -809,7 +810,7 @@ f"#;
 
         // +
         let token2 = lexer.next_token();
-        assert_eq!(token2.kind, Some(TokenKind::Plus));
+        assert_eq!(token2.kind, Some(TokenKind::Operator(Operator::Plus)));
 
         // "hello" (string)
         let token3 = lexer.next_token();
@@ -817,7 +818,7 @@ f"#;
 
         // +
         let token4 = lexer.next_token();
-        assert_eq!(token4.kind, Some(TokenKind::Plus));
+        assert_eq!(token4.kind, Some(TokenKind::Operator(Operator::Plus)));
 
         // 'b' (rune)
         let token5 = lexer.next_token();
@@ -836,7 +837,7 @@ f"#;
         let input = "struct";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Struct));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Struct)));
     }
 
     #[test]
@@ -844,7 +845,7 @@ f"#;
         let input = "switch";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Switch));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Switch)));
     }
 
     #[test]
@@ -852,7 +853,7 @@ f"#;
         let input = "type";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Type));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Type)));
     }
 
     #[test]
@@ -860,7 +861,7 @@ f"#;
         let input = "var";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Var));
+        assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Var)));
     }
 
     #[test]
@@ -868,7 +869,7 @@ f"#;
         let input = "+";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Plus));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Plus)));
     }
 
     #[test]
@@ -876,7 +877,7 @@ f"#;
         let input = "-";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Minus));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Minus)));
     }
 
     #[test]
@@ -884,7 +885,7 @@ f"#;
         let input = "*";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Star));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Star)));
     }
 
     #[test]
@@ -892,7 +893,7 @@ f"#;
         let input = "/";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Slash));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Slash)));
     }
 
     #[test]
@@ -900,7 +901,7 @@ f"#;
         let input = "%";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Percent));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Percent)));
     }
 
     #[test]
@@ -908,7 +909,7 @@ f"#;
         let input = "&";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Ampersand));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Ampersand)));
     }
 
     #[test]
@@ -916,7 +917,7 @@ f"#;
         let input = "|";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Pipe));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Pipe)));
     }
 
     #[test]
@@ -924,7 +925,7 @@ f"#;
         let input = "^";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Caret));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Caret)));
     }
 
     #[test]
@@ -932,7 +933,7 @@ f"#;
         let input = "<<";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::LessLess));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::LessLess)));
     }
 
     #[test]
@@ -940,7 +941,7 @@ f"#;
         let input = ">>";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::GreaterGreater));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::GreaterGreater)));
     }
 
     #[test]
@@ -948,7 +949,7 @@ f"#;
         let input = "&^";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::AmpersandCaret));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::AmpersandCaret)));
     }
 
     #[test]
@@ -1044,7 +1045,7 @@ f"#;
         let input = "&&";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::AndAnd));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::AndAnd)));
     }
 
     #[test]
@@ -1052,7 +1053,7 @@ f"#;
         let input = "||";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::PipePipe));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::PipePipe)));
     }
 
     #[test]
@@ -1084,7 +1085,7 @@ f"#;
         let input = "==";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::EqualEqual));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::EqualEqual)));
     }
 
     #[test]
@@ -1092,7 +1093,7 @@ f"#;
         let input = "!=";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::BangEqual));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::BangEqual)));
     }
 
     #[test]
@@ -1100,7 +1101,7 @@ f"#;
         let input = "<";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Less));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Less)));
     }
 
     #[test]
@@ -1108,7 +1109,7 @@ f"#;
         let input = "<=";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::LessEqual));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::LessEqual)));
     }
 
     #[test]
@@ -1116,7 +1117,7 @@ f"#;
         let input = ">";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Greater));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::Greater)));
     }
 
     #[test]
@@ -1124,7 +1125,7 @@ f"#;
         let input = ">=";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::GreaterEqual));
+        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::GreaterEqual)));
     }
 
     #[test]
