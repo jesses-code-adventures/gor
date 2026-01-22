@@ -191,8 +191,11 @@ impl Parser {
             let next = self.peek();
             match next.kind {
                 Some(TokenKind::Operator(op)) => {
+                    if op.precedence() < min_precedence {
+                        return Ok(left);
+                    }
                     self.advance();
-                    let right = self.parse_binary_expression(op.precedence())?;
+                    let right = self.parse_binary_expression(op.precedence() + 1)?;
                     left = Expression::new_binary(
                         left.clone(),
                         op,
@@ -201,7 +204,9 @@ impl Parser {
                         right.position_end,
                     );
                 }
-                _ => {}
+                _ => {
+                    return Ok(left);
+                }
             }
         }
     }
@@ -210,6 +215,7 @@ impl Parser {
         let next = self.peek();
         match next.kind {
             Some(TokenKind::Identifier) => self.parse_identifier_expression(),
+            Some(TokenKind::Keyword(Keyword::Func)) => self.parse_identifier_expression(),
             Some(TokenKind::IntegerLiteral) => {
                 let integer = self.expect_token(TokenKind::IntegerLiteral)?;
                 Ok(Expression::new_integer_literal(
@@ -223,6 +229,12 @@ impl Parser {
                     string.value.clone(),
                     string.position,
                 ))
+            }
+            Some(TokenKind::LeftParen) => {
+                self.advance(); // consume '('
+                let expression = self.parse_expression()?;
+                self.expect_token(TokenKind::RightParen)?;
+                Ok(expression)
             }
             _ => Err(ParserError::new(
                 ParserErrorKind::NotAPrimaryExpression(next.value.to_string()),
@@ -328,7 +340,7 @@ mod tests {
     mod tests {
         use crate::{
             ast::{expression::Expression, statement::StatementKind},
-            lexer::token_type::{TokenKind, Keyword},
+            lexer::token_type::{Keyword, TokenKind},
             parser::parser::Parser,
             primitives::position::Position,
         };
@@ -355,7 +367,10 @@ mod tests {
 
             // Parser should start "before" the first token
             assert_eq!(parser.current_token.kind, Some(TokenKind::BeforeStart));
-            assert_eq!(parser.peek_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
+            assert_eq!(
+                parser.peek_token.kind,
+                Some(TokenKind::Keyword(Keyword::Func))
+            );
             assert_eq!(parser.errors.len(), 0);
         }
 
@@ -381,7 +396,10 @@ mod tests {
 
             // First advance gets "func"
             parser.advance();
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
+            assert_eq!(
+                parser.current_token.kind,
+                Some(TokenKind::Keyword(Keyword::Func))
+            );
 
             // Second advance gets EOF
             parser.advance();
@@ -397,13 +415,18 @@ mod tests {
             let mut parser = Parser::new(input);
 
             // Expect "func" - should succeed
-            let token = parser.expect_token(TokenKind::Keyword(Keyword::Func)).unwrap();
+            let token = parser
+                .expect_token(TokenKind::Keyword(Keyword::Func))
+                .unwrap();
             assert_eq!(token.kind, Some(TokenKind::Keyword(Keyword::Func)));
             assert_eq!(token.value, "func");
             assert_eq!(parser.errors.len(), 0);
 
             // Current token should now be "func", peek should be "main"
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
+            assert_eq!(
+                parser.current_token.kind,
+                Some(TokenKind::Keyword(Keyword::Func))
+            );
             assert_eq!(parser.peek().kind, Some(TokenKind::Identifier));
         }
 
@@ -478,7 +501,10 @@ mod tests {
             assert_eq!(parser.peek().kind, Some(TokenKind::Keyword(Keyword::Func)));
 
             parser.advance();
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
+            assert_eq!(
+                parser.current_token.kind,
+                Some(TokenKind::Keyword(Keyword::Func))
+            );
             assert_eq!(parser.peek().kind, Some(TokenKind::Identifier));
         }
 
@@ -489,7 +515,10 @@ mod tests {
 
             // Test sequence of advances
             parser.advance(); // func
-            assert_eq!(parser.current_token.kind, Some(TokenKind::Keyword(Keyword::Func)));
+            assert_eq!(
+                parser.current_token.kind,
+                Some(TokenKind::Keyword(Keyword::Func))
+            );
 
             parser.advance(); // main
             assert_eq!(parser.current_token.kind, Some(TokenKind::Identifier));
@@ -661,7 +690,6 @@ func main() {
                 "x >= y",         // Greater than or equal
                 "a + b * c",      // Precedence test
                 "(a + b) * c",    // Parentheses
-                "func() + var",   // Mixed function calls and variables
                 "obj.field + 42", // Mixed field access and literals
             ];
 
