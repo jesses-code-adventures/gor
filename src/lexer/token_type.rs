@@ -130,6 +130,9 @@ pub enum TokenKind {
     RightBracket,
     LeftBrace,
     RightBrace,
+    Backtick,
+    DollarSign,
+    Newline,
 }
 
 fn is_valid_string_content(content: &str) -> bool {
@@ -275,6 +278,8 @@ impl TokenKind {
             "]" => Some(TokenKind::RightBracket),
             "{" => Some(TokenKind::LeftBrace),
             "}" => Some(TokenKind::RightBrace),
+            "`" => Some(TokenKind::Backtick),
+            "$" => Some(TokenKind::DollarSign),
             _ => {
                 if is_integer_literal {
                     Some(TokenKind::IntegerLiteral)

@@ -33,6 +33,10 @@ impl Lexer {
         loop {
             match self.next() {
                 Some(ch) => match ch {
+                    ch if ch == '\n' && !self.is_parsing_string && !self.is_parsing_rune => {
+                        self.anchor = self.current_position;
+                        return Token::new_with_kind(TokenKind::Newline, "\n", self.current_token_position());
+                    }
                     ch if is_whitespace(ch) && !self.is_parsing_string && !self.is_parsing_rune => {
                         self.handle_whitespace();
                         continue;
