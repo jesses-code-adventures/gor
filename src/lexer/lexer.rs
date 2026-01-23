@@ -1,5 +1,5 @@
 use crate::lexer::token::Token;
-use crate::lexer::token_type::{TokenKind};
+use crate::lexer::token_type::TokenKind;
 use crate::primitives::{
     errors::lexer::{LexerError, LexerErrorKind},
     position::Position,
@@ -38,7 +38,6 @@ impl Lexer {
                         continue;
                     }
                     ch if is_whitespace(ch) && self.is_parsing_rune => {
-                        // Whitespace inside a rune is invalid - generate error immediately
                         self.errors.push(LexerError::new(
                             LexerErrorKind::UnterminatedRune(
                                 self.proposed_token(false).to_string(),
@@ -57,9 +56,9 @@ impl Lexer {
                             // Start of string
                             self.is_parsing_string = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                            // we've already called
-                            // next(), so we need to go
-                            // back a char
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
@@ -71,9 +70,9 @@ impl Lexer {
                             // Start of rune
                             self.is_parsing_rune = true;
                             self.anchor = self.current_position - 1; // Include the opening quote -
-                            // we've already called
-                            // next(), so we need to go
-                            // back a char
+                                                                     // we've already called
+                                                                     // next(), so we need to go
+                                                                     // back a char
                             continue;
                         }
                     }
@@ -105,24 +104,26 @@ impl Lexer {
                 },
                 None => {
                     if self.is_parsing_string {
-                        // Unterminated string error
                         self.errors.push(LexerError::new(
                             LexerErrorKind::UnterminatedString(
                                 self.proposed_token(false).to_string(),
                             ),
                             self.current_token_position(),
                         ));
+                        self.is_parsing_string = false;
+                        self.anchor = self.current_position;
                         return Token::new("", self.current_token_position());
                     }
 
                     if self.is_parsing_rune {
-                        // Unterminated rune error
                         self.errors.push(LexerError::new(
                             LexerErrorKind::UnterminatedRune(
                                 self.proposed_token(false).to_string(),
                             ),
                             self.current_token_position(),
                         ));
+                        self.is_parsing_rune = false;
+                        self.anchor = self.current_position;
                         return Token::new("", self.current_token_position());
                     }
 
@@ -200,7 +201,6 @@ impl Lexer {
             Ok(Some(token)) => match token.kind {
                 None => return None,
                 _ => {
-                    // Token was successfully created, advance anchor
                     self.anchor = self.current_position;
                     return Some(token);
                 }
@@ -220,7 +220,6 @@ impl Lexer {
         let value = self.proposed_token(false);
         match self.tokenize(value) {
             Ok(Some(token)) => {
-                // Token was successfully created, advance anchor
                 self.anchor = self.current_position;
                 Some(token)
             }
@@ -343,6 +342,10 @@ impl Lexer {
         self.newline_before_current_token = false;
         had_newline
     }
+
+    pub fn errors(&self) -> &[LexerError] {
+        &self.errors
+    }
 }
 
 fn is_symbol(c: char) -> bool {
@@ -379,7 +382,7 @@ fn is_whitespace(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::token_type::{Operator, Keyword};
+    use crate::lexer::token_type::{Keyword, Operator};
     #[test]
     fn simple_statement() {
         let input = r#"j := i++"#;
@@ -941,7 +944,10 @@ f"#;
         let input = ">>";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::GreaterGreater)));
+        assert_eq!(
+            token.kind,
+            Some(TokenKind::Operator(Operator::GreaterGreater))
+        );
     }
 
     #[test]
@@ -949,7 +955,10 @@ f"#;
         let input = "&^";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::AmpersandCaret)));
+        assert_eq!(
+            token.kind,
+            Some(TokenKind::Operator(Operator::AmpersandCaret))
+        );
     }
 
     #[test]
@@ -1125,7 +1134,10 @@ f"#;
         let input = ">=";
         let mut lexer = Lexer::new(input);
         let token = lexer.next_token();
-        assert_eq!(token.kind, Some(TokenKind::Operator(Operator::GreaterEqual)));
+        assert_eq!(
+            token.kind,
+            Some(TokenKind::Operator(Operator::GreaterEqual))
+        );
     }
 
     #[test]
