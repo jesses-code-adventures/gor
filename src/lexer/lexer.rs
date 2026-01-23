@@ -10,6 +10,7 @@ pub struct Lexer {
     input: String, // TODO: this should be a stream or a &str but i cbf to deal with lifetimes
     current_position: usize,
     anchor: usize,
+    line_start: usize, // Character position of the start of the current line
     errors: Vec<LexerError>,
     is_parsing_string: bool,
     is_parsing_rune: bool,
@@ -22,6 +23,7 @@ impl Lexer {
             input: input.to_string(),
             current_position: 0,
             anchor: 0,
+            line_start: 0,
             errors: Vec::new(),
             is_parsing_string: false,
             is_parsing_rune: false,
@@ -33,7 +35,32 @@ impl Lexer {
         loop {
             match self.next() {
                 Some(ch) => match ch {
-                    ch if ch == '\n' && !self.is_parsing_string && !self.is_parsing_rune => {
+                    ch if ch == '\n' => {
+                        if self.is_parsing_string {
+                            self.errors.push(LexerError::new(
+                                LexerErrorKind::UnterminatedString(
+                                    self.proposed_token(false).to_string(),
+                                ),
+                                self.current_token_position(),
+                            ));
+                            self.is_parsing_string = false;
+                            self.anchor = self.current_position;
+                            return Token::new("", self.current_token_position());
+                        }
+                        if self.is_parsing_rune {
+                            self.errors.push(LexerError::new(
+                                LexerErrorKind::UnterminatedRune(
+                                    self.proposed_token(false).to_string(),
+                                ),
+                                self.current_token_position(),
+                            ));
+                            self.is_parsing_rune = false;
+                            self.anchor = self.current_position;
+                            return Token::new("", self.current_token_position());
+                        }
+                        if self.peek().is_some() {
+                            self.line_start = self.current_position;
+                        }
                         self.anchor = self.current_position;
                         return Token::new_with_kind(TokenKind::Newline, "\n", self.current_token_position());
                     }
@@ -318,7 +345,7 @@ impl Lexer {
     }
 
     fn current_token_position(&self) -> Position {
-        Position::new(self.current_line(), self.anchor, self.current_position)
+        Position::new(self.current_line(), self.anchor - self.line_start, self.current_position - self.line_start)
     }
 
     fn handle_whitespace(&mut self) {
