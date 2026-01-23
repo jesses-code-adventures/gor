@@ -131,13 +131,31 @@ pub struct Position {
 **File Structure:**
 ```
 src/
-├── lib.rs          # Module declarations
-├── main.rs         # Binary entry point
-├── lexer.rs        # Main lexer implementation
-├── token.rs        # Token struct and creation
-├── token_type.rs   # TokenKind enum and matching logic
-├── position.rs     # Position tracking
-└── errors.rs       # Error types and handling
+├── lib.rs              # Module declarations
+├── main.rs             # Binary entry point
+├── cli/
+│   ├── cli.rs          # CLI argument parsing
+│   └── mod.rs          # CLI module
+├── lexer/
+│   ├── lexer.rs        # Main lexer implementation
+│   ├── token.rs        # Token struct and creation
+│   ├── token_type.rs   # TokenKind enum and matching logic
+│   └── mod.rs          # Lexer module
+├── parser/
+│   ├── parser.rs       # Parser implementation
+│   └── mod.rs          # Parser module
+├── ast/
+│   ├── ast.rs          # AST node definitions
+│   ├── expression.rs   # Expression AST nodes
+│   ├── statement.rs    # Statement AST nodes
+│   └── mod.rs          # AST module
+├── primitives/
+│   ├── position.rs     # Position tracking
+│   └── errors/
+│       ├── lexer.rs    # Lexer error types
+│       ├── parser.rs   # Parser error types
+│       ├── programming.rs # Programming error types
+│       └── mod.rs      # Errors module
 ```
 
 **Module Exports:**
