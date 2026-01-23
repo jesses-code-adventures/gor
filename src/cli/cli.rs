@@ -1,5 +1,4 @@
 use crate::lexer::lexer::Lexer;
-use crate::lexer::token_type::TokenKind;
 use std::fs;
 use std::path::PathBuf;
 
@@ -32,28 +31,18 @@ impl CLI {
         }
         let content = self.read_go_file(filename);
         let mut lexer = Lexer::new(&content);
-        loop {
-            let token = lexer.next_token();
-            if let Some(TokenKind::EOF) = token.kind {
-                break;
+
+        let has_errors = lexer.dump_tokens().any(|item| {
+            if item.starts_with("Error at") {
+                eprintln!("{}", item);
+                true
+            } else {
+                println!("{}", item);
+                false
             }
-            println!(
-                "{}:{} {} {:?} {}",
-                token.position.line,
-                token.position.column_start,
-                token.position.column_end,
-                token.kind.unwrap_or(TokenKind::BeforeStart),
-                token.value.escape_debug()
-            );
-        }
-        let errors = lexer.errors();
-        for error in errors {
-            eprintln!(
-                "Error at {}:{}: {:?}",
-                error.position.line, error.position.column_start, error.kind
-            );
-        }
-        if !errors.is_empty() {
+        });
+
+        if has_errors {
             std::process::exit(1);
         }
     }

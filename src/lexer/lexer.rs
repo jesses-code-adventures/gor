@@ -346,6 +346,41 @@ impl Lexer {
     pub fn errors(&self) -> &[LexerError] {
         &self.errors
     }
+
+    pub fn dump_tokens(&mut self) -> impl Iterator<Item = String> + '_ {
+        let mut tokens: Vec<(Position, String)> = Vec::new();
+        let mut errors: Vec<(Position, String)> = Vec::new();
+
+        loop {
+            let token = self.next_token();
+            if let Some(TokenKind::EOF) = token.kind {
+                break;
+            }
+            let token_str = format!(
+                "{}:{} {} {:?} {}",
+                token.position.line,
+                token.position.column_start,
+                token.position.column_end,
+                token.kind.unwrap_or(TokenKind::BeforeStart),
+                token.value.escape_debug()
+            );
+            tokens.push((token.position, token_str));
+        }
+
+        for error in &self.errors {
+            let error_str = format!(
+                "Error at {}:{}: {:?}",
+                error.position.line, error.position.column_start, error.kind
+            );
+            errors.push((error.position, error_str));
+        }
+
+        let mut all_items: Vec<(Position, String)> = tokens.into_iter().chain(errors).collect();
+
+        all_items.sort_by_key(|(pos, _)| (pos.line, pos.column_start));
+
+        all_items.into_iter().map(|(_, s)| s)
+    }
 }
 
 fn is_symbol(c: char) -> bool {
